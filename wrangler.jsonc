@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "api2api",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-12-30",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "api2api-db",
+      "database_id": "replace-with-your-d1-database-id"
+    }
+  ],
+  "vars": {
+    "CORS_ORIGIN": "*"
+  }
+}
