@@ -130,7 +130,15 @@ database_name = "api2api-db"
 database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 ```
 
-把 `database_id` 填入 `wrangler.jsonc`：
+公开仓库不要提交真实 `database_id`。先复制示例配置到本地真实配置：
+
+```bash
+cp wrangler.example.jsonc wrangler.jsonc
+```
+
+`wrangler.jsonc` 已被 `.gitignore` 忽略，不会提交到公开仓库。
+
+然后把 `database_id` 填入本地 `wrangler.jsonc`：
 
 ```jsonc
 "d1_databases": [
