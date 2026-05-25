@@ -27,6 +27,7 @@ app.get("/health", (c) => json({ ok: true }));
 app.get("/admin", (c) => c.html(adminHtml()));
 
 app.use("/api/*", requireAdmin);
+app.get("/api/config", (c) => json({ serviceApiKey: c.env.SERVICE_API_KEY || "" }));
 app.post("/api/providers/:id/sync", async (c) => {
   const provider = await getProvider(c.env, c.req.param("id"));
   if (!provider) return error("Provider not found", 404, "not_found");

@@ -82,6 +82,19 @@ export function adminHtml(): string {
 
     <div id="app" class="hidden">
       <div id="status" class="status hidden"></div>
+      <section class="card" style="margin-bottom:20px">
+        <h2>API 接入信息</h2>
+        <label>API Endpoint（客户端 base_url）</label>
+        <div class="row">
+          <code id="infoEndpoint" style="flex:1;padding:8px 10px;background:#f3f4f6;border-radius:8px;word-break:break-all"></code>
+          <button class="ghost" type="button" id="copyEndpointBtn">复制</button>
+        </div>
+        <label>SERVICE_API_KEY（Bearer Token）</label>
+        <div class="row">
+          <code id="infoKey" style="flex:1;padding:8px 10px;background:#f3f4f6;border-radius:8px;word-break:break-all"></code>
+          <button class="ghost" type="button" id="copyKeyBtn">复制</button>
+        </div>
+      </section>
       <div class="grid">
         <section class="card">
           <h2>添加 / 编辑 Provider</h2>
@@ -237,10 +250,11 @@ export function adminHtml(): string {
     }
 
     async function loadAll() {
-      const p = await api('/api/providers');
-      const m = await api('/api/models');
+      const [p, m, cfg] = await Promise.all([api('/api/providers'), api('/api/models'), api('/api/config')]);
       providers = p.data || [];
       models = m.data || [];
+      el('infoEndpoint').textContent = window.location.origin + '/v1';
+      el('infoKey').textContent = cfg.serviceApiKey || '(未设置 SERVICE_API_KEY)';
       renderProviders();
       renderProviderFilter();
       renderModels();
@@ -377,6 +391,8 @@ export function adminHtml(): string {
     el('loginBtn').addEventListener('click', saveToken);
     el('adminToken').addEventListener('keydown', function(event) { if (event.key === 'Enter') saveToken(); });
     el('logoutBtn').addEventListener('click', logout);
+    el('copyEndpointBtn').addEventListener('click', function() { navigator.clipboard.writeText(el('infoEndpoint').textContent || ''); el('copyEndpointBtn').textContent = '已复制'; setTimeout(function() { el('copyEndpointBtn').textContent = '复制'; }, 1500); });
+    el('copyKeyBtn').addEventListener('click', function() { navigator.clipboard.writeText(el('infoKey').textContent || ''); el('copyKeyBtn').textContent = '已复制'; setTimeout(function() { el('copyKeyBtn').textContent = '复制'; }, 1500); });
     el('saveProviderBtn').addEventListener('click', saveProvider);
     el('resetProviderBtn').addEventListener('click', resetProviderForm);
     el('syncAllBtn').addEventListener('click', syncAll);
