@@ -44,6 +44,7 @@ export function adminHtml(): string {
     .scroll { width:100%; min-width:0; max-width:100%; overflow:auto; -webkit-overflow-scrolling:touch; max-height:640px; border:1px solid var(--line); border-radius:12px; }
     .model-public { min-width:260px; }
     .provider-card { border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:10px; }
+    #exportMenu button:hover { background:#f3f4f6 !important; }
     @media (max-width: 900px) {
       header { align-items:flex-start; flex-direction:column; }
       main { padding:14px; overflow-x:hidden; }
@@ -93,6 +94,13 @@ export function adminHtml(): string {
         <div class="row">
           <code id="infoKey" style="flex:1;padding:8px 10px;background:#f3f4f6;border-radius:8px;word-break:break-all"></code>
           <button class="ghost" type="button" id="copyKeyBtn">复制</button>
+        </div>
+        <label>导出配置文件</label>
+        <div class="row" style="position:relative">
+          <button class="secondary" type="button" id="exportBtn">选择目标平台 ▾</button>
+          <div id="exportMenu" class="hidden" style="position:absolute;top:100%;left:0;margin-top:6px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.08);z-index:20;min-width:220px;overflow:hidden">
+            <button type="button" data-export="opencode" style="display:block;width:100%;text-align:left;background:#fff;color:var(--text);border:0;border-radius:0;padding:11px 14px;font-weight:500;cursor:pointer">opencode</button>
+          </div>
         </div>
       </section>
       <div class="grid">
@@ -393,6 +401,66 @@ export function adminHtml(): string {
     el('logoutBtn').addEventListener('click', logout);
     el('copyEndpointBtn').addEventListener('click', function() { navigator.clipboard.writeText(el('infoEndpoint').textContent || ''); el('copyEndpointBtn').textContent = '已复制'; setTimeout(function() { el('copyEndpointBtn').textContent = '复制'; }, 1500); });
     el('copyKeyBtn').addEventListener('click', function() { navigator.clipboard.writeText(el('infoKey').textContent || ''); el('copyKeyBtn').textContent = '已复制'; setTimeout(function() { el('copyKeyBtn').textContent = '复制'; }, 1500); });
+
+    function downloadFile(filename, content) {
+      const blob = new Blob([content], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    }
+
+    function buildOpencodeConfig() {
+      const baseURL = window.location.origin + '/v1';
+      const apiKey = el('infoKey').textContent || '';
+      const selected = models.filter(function(m) { return m.selected && m.providerEnabled; });
+      const modelsMap = {};
+      selected.forEach(function(m) { modelsMap[m.publicModelId] = { name: m.publicModelId }; });
+      return {
+        '$schema': 'https://opencode.ai/config.json',
+        provider: {
+          api2api: {
+            npm: '@ai-sdk/openai-compatible',
+            name: 'api2api',
+            options: { baseURL: baseURL, apiKey: apiKey },
+            models: modelsMap
+          }
+        }
+      };
+    }
+
+    function exportConfig(target) {
+      try {
+        if (target === 'opencode') {
+          const cfg = buildOpencodeConfig();
+          downloadFile('opencode.json', JSON.stringify(cfg, null, 2));
+          setStatus('已导出 opencode 配置文件', 'ok');
+        }
+      } catch (err) {
+        setStatus('导出失败：' + err.message, 'error');
+      }
+    }
+
+    el('exportBtn').addEventListener('click', function(event) {
+      event.stopPropagation();
+      el('exportMenu').classList.toggle('hidden');
+    });
+    el('exportMenu').addEventListener('click', function(event) {
+      const target = event.target.closest('button[data-export]');
+      if (!target) return;
+      el('exportMenu').classList.add('hidden');
+      exportConfig(target.getAttribute('data-export'));
+    });
+    document.addEventListener('click', function(event) {
+      const menu = el('exportMenu');
+      if (menu.classList.contains('hidden')) return;
+      if (event.target === el('exportBtn')) return;
+      if (!menu.contains(event.target)) menu.classList.add('hidden');
+    });
     el('saveProviderBtn').addEventListener('click', saveProvider);
     el('resetProviderBtn').addEventListener('click', resetProviderForm);
     el('syncAllBtn').addEventListener('click', syncAll);
