@@ -262,9 +262,13 @@ export function adminHtml(): string {
     }
 
     function renderProviderFilter() {
-      el('providerFilter').innerHTML = '<option value="">所有 Provider</option>' + providers.map(function(p) {
+      const filter = el('providerFilter');
+      const current = filter.value;
+      filter.innerHTML = '<option value="">所有 Provider</option>' + providers.map(function(p) {
         return '<option value="' + esc(p.name) + '">' + esc(p.name) + '</option>';
       }).join('');
+      filter.value = current;
+      if (filter.value !== current) filter.value = '';
     }
 
     function visibleModels() {
