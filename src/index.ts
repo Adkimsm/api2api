@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { requireAdmin, requireServiceKey } from "./auth";
 import { addCors, corsHeaders, error, json } from "./http";
-import { adminHtml } from "./admin";
 import { providerRoutes } from "./providers";
 import { modelRoutes, syncProviderModels } from "./models";
 import { openaiRoutes } from "./openai";
@@ -24,7 +23,6 @@ app.use("*", async (c, next) => {
 });
 
 app.get("/health", (c) => json({ ok: true }));
-app.get("/admin", (c) => c.html(adminHtml()));
 
 app.use("/api/*", requireAdmin);
 app.get("/api/config", (c) => json({ serviceApiKey: c.env.SERVICE_API_KEY || "" }));

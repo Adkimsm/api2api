@@ -8,11 +8,13 @@ Cloudflare Workers 上的私人 OpenAI-compatible 聚合网关。
 
 - Cloudflare Workers + Hono
 - Cloudflare D1 缓存 provider 和模型列表
-- `/admin` 简洁管理后台
+- `/admin` 管理后台：React + Vite + Tailwind v4 + shadcn/ui，跟随系统亮暗主题
+- 通过 Cloudflare Workers Assets 直接提供静态资源
 - 添加、编辑、删除、启用、禁用 provider
 - 从每个 provider 的 `GET /v1/models` 同步模型并存储到 D1
 - 管理页面选择要暴露的模型
 - 可编辑公开模型 ID，例如 `openrouter/openai/gpt-4o-mini`
+- 一键导出客户端配置文件（当前支持 opencode）
 - `GET /v1/models` 只返回已选择模型，不实时请求上游
 - `POST /v1/chat/completions` 按模型映射转发到上游 `/v1/chat/completions`
 - `POST /v1/responses` 按模型映射转发到上游 `/v1/responses`
@@ -28,10 +30,11 @@ GET /health
 OPTIONS /*
 ```
 
-管理后台：
+管理后台（由 Workers Assets 提供，`/admin` 与 `/admin/` 都可访问）：
 
 ```txt
 GET /admin
+GET /admin/assets/*
 ```
 
 管理 API，全部需要 `ADMIN_TOKEN`：
@@ -56,14 +59,52 @@ POST /v1/chat/completions
 POST /v1/responses
 ```
 
+## 项目结构
+
+```txt
+api2api/
+├── src/                  Worker 后端（Hono + D1）
+│   ├── index.ts          路由入口
+│   ├── auth.ts           ADMIN_TOKEN / SERVICE_API_KEY 鉴权中间件
+│   ├── providers.ts      /api/providers
+│   ├── models.ts         /api/models + 同步逻辑
+│   ├── openai.ts         /v1/* OpenAI-compatible 转发
+│   ├── db.ts             D1 查询
+│   ├── crypto.ts         provider API Key 加解密
+│   ├── http.ts           JSON / CORS / 错误响应
+│   └── types.ts          Env / 业务类型
+├── frontend/             管理后台（Vite + React + Tailwind v4 + shadcn/ui）
+│   ├── index.html
+│   ├── vite.config.ts
+│   ├── tsconfig.json
+│   ├── postcss.config.js
+│   ├── components.json   shadcn/ui 配置
+│   ├── src/
+│   │   ├── main.tsx
+│   │   ├── App.tsx       哈希路由 + 鉴权状态机
+│   │   ├── api.ts        fetch 封装 + 401 处理
+│   │   ├── auth.ts       localStorage token 管理
+│   │   ├── router.ts     useHashRoute hook
+│   │   ├── index.css     Tailwind + shadcn 主题变量
+│   │   ├── components/   Layout / Login / ProviderForm / ProviderCard / ModelRow
+│   │   ├── components/ui 直接拉自 shadcn/ui
+│   │   ├── pages/        Overview / Providers / Models
+│   │   └── hooks/        useAdminData (Context)
+│   └── dist/             vite build 产物（部署时由 Workers Assets 上传）
+├── migrations/           D1 SQL 迁移
+├── wrangler.example.jsonc
+└── wrangler.jsonc        本地真实配置（被 .gitignore）
+```
+
 ## 工作方式
 
 1. 进入 `/admin`。
 2. 输入 `ADMIN_TOKEN`，保存到浏览器 `localStorage`。
-3. 添加 provider。
+3. 在「Provider 管理」添加 provider。
 4. 点击同步模型。
-5. 在模型管理里勾选要暴露的模型。
-6. OpenAI 兼容客户端使用 Worker 的 `/v1` 地址和 `SERVICE_API_KEY`。
+5. 在「模型管理」里勾选要暴露的模型，必要时改 Public Model ID。
+6. 在「概览」复制 Endpoint / SERVICE_API_KEY，或一键导出 opencode 配置文件。
+7. OpenAI 兼容客户端使用 Worker 的 `/v1` 地址和 `SERVICE_API_KEY`。
 
 请求转发时只改写 `model` 字段，其他请求体字段尽量保持原样。
 
@@ -101,10 +142,11 @@ https://openrouter.ai/api/v1/chat/completions
 
 ## 本地准备
 
-安装依赖：
+需要 Node 20+ 与 npm。安装依赖（根目录 + 前端各装一次）：
 
 ```bash
 npm install
+npm --prefix frontend install
 ```
 
 登录 Cloudflare：
@@ -205,25 +247,60 @@ API_KEY_ENCRYPTION_SECRET=your-32-byte-random-secret
 CORS_ORIGIN=*
 ```
 
-启动：
+启动 worker + 前端 dev server（通过 `concurrently` 并发跑）：
 
 ```bash
 npm run dev
 ```
 
-打开：
+- `wrangler dev` 监听 `http://localhost:8787`，承担 `/api/*`、`/v1/*`、`/health`
+- `vite` 监听 `http://localhost:5173`，承担 `/admin/`，并把 `/api`、`/v1`、`/health` proxy 到 wrangler
+
+开发时打开：
 
 ```txt
-http://localhost:8787/admin
+http://localhost:5173/admin/
+```
+
+通过 vite 访问能拿到 HMR，登录态会照常打 worker。如果只想跑后端：
+
+```bash
+npm run dev:worker
+```
+
+构建前端产物（输出到 `frontend/dist/admin/`）：
+
+```bash
+npm run build:frontend
+```
+
+类型检查（worker + 前端各跑一遍 `tsc --noEmit`）：
+
+```bash
+npm run typecheck
 ```
 
 ## 部署
 
-部署 Worker：
+`npm run deploy` 会先构建前端（`vite build` → `frontend/dist/admin/`），然后 `wrangler deploy` 把 Worker 与静态资源一起上传：
 
 ```bash
 npm run deploy
 ```
+
+`wrangler.jsonc` 里的 `assets` 块负责把 `frontend/dist` 挂到 Workers Assets：
+
+```jsonc
+"assets": {
+  "directory": "./frontend/dist",
+  "html_handling": "auto-trailing-slash",
+  "not_found_handling": "none"
+}
+```
+
+- 静态资源（`/admin`、`/admin/assets/*`）由 Cloudflare 直接服务，不经过 Worker
+- `not_found_handling: "none"` 让未匹配的路径透传给 Worker，确保 `/api/*`、`/v1/*` 仍走 Hono 路由
+- 我们用哈希路由（`#/overview`、`#/providers`、`#/models`），子页切换不会触发服务端导航，因此不需要 SPA 回退
 
 部署完成后会得到 Worker 地址，例如：
 
@@ -234,7 +311,7 @@ https://api2api.your-subdomain.workers.dev
 管理后台：
 
 ```txt
-https://api2api.your-subdomain.workers.dev/admin
+https://api2api.your-subdomain.workers.dev/admin/
 ```
 
 OpenAI-compatible Base URL：
@@ -273,14 +350,13 @@ Authorization: Bearer {Provider API Key}
 
 ## 管理模型
 
-同步完成后，在模型管理区域可以：
+同步完成后，在「模型管理」可以：
 
-- 搜索模型
+- 搜索 remote / public model id
 - 按 provider 筛选
 - 勾选是否暴露
-- 修改 `Public Model ID`
-- 批量选中当前可见模型
-- 批量取消当前可见模型
+- 修改 `Public Model ID`，回车或点 ✓ 保存
+- 一键「全选可见」/「全取消可见」当前过滤结果
 
 默认公开模型名格式：
 
@@ -311,6 +387,31 @@ GET /v1/models
 ```
 
 只有你在管理页面勾选的模型会返回。
+
+### 导出 opencode 配置文件
+
+在「概览」页面选择目标平台并点导出，会下载一份 `opencode.json`，包含已选模型与当前 Endpoint / SERVICE_API_KEY：
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "api2api": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "api2api",
+      "options": {
+        "baseURL": "https://api2api.your-subdomain.workers.dev/v1",
+        "apiKey": "sk-api2api-your-key"
+      },
+      "models": {
+        "openrouter/openai/gpt-4o-mini": { "name": "openrouter/openai/gpt-4o-mini" }
+      }
+    }
+  }
+}
+```
+
+放到 opencode 配置目录即可直接使用。
 
 ## curl 测试
 
