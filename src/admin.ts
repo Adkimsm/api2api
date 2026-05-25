@@ -156,6 +156,11 @@ export function adminHtml(): string {
     function setBusy(isBusy) {
       document.querySelectorAll('button').forEach(function(button) { button.disabled = isBusy; });
     }
+    function setProviderBusy(id, isBusy) {
+      const card = document.querySelector('.provider-card[data-id="' + CSS.escape(id) + '"]');
+      if (!card) return;
+      card.querySelectorAll('button').forEach(function(button) { button.disabled = isBusy; });
+    }
 
     async function api(path, options) {
       const opts = options || {};
@@ -333,15 +338,15 @@ export function adminHtml(): string {
 
     async function deleteProvider(id) {
       if (!confirm('删除 provider 会同时删除其缓存模型，确认继续？')) return;
-      try { setBusy(true); await api('/api/providers/' + id, { method: 'DELETE' }); await loadAll(); setStatus('Provider 已删除', 'ok'); }
+      try { setProviderBusy(id, true); await api('/api/providers/' + id, { method: 'DELETE' }); await loadAll(); setStatus('Provider 已删除', 'ok'); }
       catch (err) { setStatus(err.message, 'error'); }
-      finally { setBusy(false); }
+      finally { setProviderBusy(id, false); }
     }
 
     async function syncProvider(id) {
-      try { setBusy(true); setStatus('正在同步 provider 模型...'); await api('/api/providers/' + id + '/sync', { method: 'POST' }); await loadAll(); setStatus('同步完成', 'ok'); }
+      try { setProviderBusy(id, true); setStatus('正在同步 provider 模型...'); await api('/api/providers/' + id + '/sync', { method: 'POST' }); await loadAll(); setStatus('同步完成', 'ok'); }
       catch (err) { setStatus(err.message, 'error'); }
-      finally { setBusy(false); }
+      finally { setProviderBusy(id, false); }
     }
 
     async function syncAll() {
