@@ -80,7 +80,7 @@ export function ProviderForm({ open, onOpenChange, editing }: Props) {
         <DialogHeader>
           <DialogTitle>{editing ? "编辑 Provider" : "添加 Provider"}</DialogTitle>
           <DialogDescription>
-            上游 API 的基本信息。Base URL 必须包含 <code className="font-mono text-xs">/v1</code> 路径。
+            上游 API 的基本信息。Base URL 填写实际拼接前缀，例如 <code className="font-mono text-xs">https://api.openai.com/v1</code>，自定义路径也可。
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">

@@ -45,7 +45,6 @@ providerRoutes.post("/", async (c) => {
 
   if (!name) return error("Provider name is required");
   if (!baseUrl) return error("Provider baseUrl is required");
-  if (!baseUrl.includes("/v1")) return error("Provider baseUrl must include /v1, for example https://api.openai.com/v1");
   if (!apiKey) return error("Provider apiKey is required");
 
   const now = nowIso();
@@ -83,7 +82,6 @@ providerRoutes.patch("/:id", async (c) => {
 
   if (!name) return error("Provider name is required");
   if (!baseUrl) return error("Provider baseUrl is required");
-  if (!baseUrl.includes("/v1")) return error("Provider baseUrl must include /v1, for example https://api.openai.com/v1");
 
   try {
     await c.env.DB.prepare(

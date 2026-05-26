@@ -1,9 +1,17 @@
 import { useEffect, useState } from "react";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { api } from "../api";
@@ -19,6 +27,8 @@ export function ModelRow({ model }: Props) {
   const [publicId, setPublicId] = useState(model.publicModelId);
   const [savingSelected, setSavingSelected] = useState(false);
   const [savingId, setSavingId] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     setPublicId(model.publicModelId);
@@ -53,6 +63,20 @@ export function ModelRow({ model }: Props) {
       toast.error((err as Error).message);
     } finally {
       setSavingId(false);
+    }
+  }
+
+  async function remove() {
+    setDeleting(true);
+    try {
+      await api("/api/models/" + model.id, { method: "DELETE" });
+      await reload();
+      toast.success("模型已删除");
+      setConfirmOpen(false);
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -103,6 +127,37 @@ export function ModelRow({ model }: Props) {
         </div>
       </TableCell>
       <TableCell className="text-muted-foreground text-xs whitespace-nowrap">{model.lastSeenAt}</TableCell>
+      <TableCell className="w-10">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => setConfirmOpen(true)}
+          disabled={deleting}
+          className="text-muted-foreground hover:text-destructive"
+          aria-label="删除模型"
+        >
+          {deleting ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+        </Button>
+      </TableCell>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>删除模型</DialogTitle>
+            <DialogDescription>
+              确认删除 <code className="font-mono text-xs">{model.publicModelId}</code>？该记录将从数据库中移除，下一次同步若上游仍返回该模型会被重新创建。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={deleting}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={remove} disabled={deleting}>
+              {deleting ? "删除中..." : "确认删除"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </TableRow>
   );
 }

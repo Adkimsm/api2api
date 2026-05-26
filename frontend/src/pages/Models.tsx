@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Loader2, RefreshCw, Search } from "lucide-react";
+import { Loader2, Plus, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { api } from "../api";
+import { ModelForm } from "../components/ModelForm";
 import { ModelRow } from "../components/ModelRow";
 import { useAdminData } from "../hooks/useAdminData";
 
@@ -28,6 +29,7 @@ export function Models() {
   const { providers, models, reload, busy, setBusy } = useAdminData();
   const [search, setSearch] = useState("");
   const [providerFilter, setProviderFilter] = useState<string>(ALL_PROVIDERS);
+  const [addOpen, setAddOpen] = useState(false);
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -103,6 +105,15 @@ export function Models() {
             <RefreshCw className="size-3.5" />
             刷新
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setAddOpen(true)}
+            disabled={busy || providers.length === 0}
+          >
+            <Plus className="size-3.5" />
+            添加模型
+          </Button>
           <Button size="sm" onClick={syncAll} disabled={busy}>
             {busy ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
             同步全部
@@ -151,12 +162,13 @@ export function Models() {
                 <TableHead>Remote Model</TableHead>
                 <TableHead>Public Model ID</TableHead>
                 <TableHead className="whitespace-nowrap">Last Seen</TableHead>
+                <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {visible.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-muted-foreground py-10 text-center text-sm">
+                  <TableCell colSpan={6} className="text-muted-foreground py-10 text-center text-sm">
                     暂无模型。请先添加 Provider 并同步，或调整搜索 / 筛选条件。
                   </TableCell>
                 </TableRow>
@@ -167,6 +179,8 @@ export function Models() {
           </Table>
         </div>
       </div>
+
+      <ModelForm open={addOpen} onOpenChange={setAddOpen} />
     </div>
   );
 }

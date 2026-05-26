@@ -13,6 +13,13 @@ type ModelPatchInput = {
   publicModelId?: string;
 };
 
+type ModelCreateInput = {
+  providerId?: string;
+  remoteModelId?: string;
+  publicModelId?: string;
+  selected?: boolean;
+};
+
 function publicModel(row: Awaited<ReturnType<typeof listModels>>[number]) {
   return {
     id: row.id,
@@ -81,6 +88,54 @@ export const modelRoutes = new Hono<{ Bindings: Env }>();
 modelRoutes.get("/", async (c) => {
   const models = await listModels(c.env);
   return json({ data: models.map(publicModel) });
+});
+
+modelRoutes.post("/", async (c) => {
+  let body: ModelCreateInput;
+  try {
+    body = await c.req.json<ModelCreateInput>();
+  } catch {
+    return error("Invalid JSON body", 400, "invalid_json");
+  }
+
+  const providerId = body.providerId?.trim();
+  const remoteModelId = body.remoteModelId?.trim();
+  if (!providerId) return error("providerId is required");
+  if (!remoteModelId) return error("remoteModelId is required");
+
+  const provider = await getProvider(c.env, providerId);
+  if (!provider) return error("Provider not found", 404, "not_found");
+
+  const publicModelId = body.publicModelId?.trim() || defaultPublicModelId(provider, remoteModelId);
+  const selected = body.selected ? 1 : 0;
+  const now = nowIso();
+  const modelId = id("model");
+
+  try {
+    await c.env.DB.prepare(
+      `INSERT INTO models (id, provider_id, remote_model_id, public_model_id, selected, last_seen_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(modelId, provider.id, remoteModelId, publicModelId, selected, now, now, now).run();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to create model";
+    const lower = message.toLowerCase();
+    if (lower.includes("unique") && lower.includes("public_model_id")) {
+      return error("publicModelId already exists", 409, "conflict");
+    }
+    if (lower.includes("unique")) {
+      return error("Model already exists for this provider", 409, "conflict");
+    }
+    throw err;
+  }
+
+  return json({ data: { id: modelId } }, { status: 201 });
+});
+
+modelRoutes.delete("/:id", async (c) => {
+  const model = await getModel(c.env, c.req.param("id"));
+  if (!model) return error("Model not found", 404, "not_found");
+  await c.env.DB.prepare(`DELETE FROM models WHERE id = ?`).bind(model.id).run();
+  return json({ data: { ok: true } });
 });
 
 modelRoutes.post("/sync-all", async (c) => {
