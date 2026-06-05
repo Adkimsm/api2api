@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 
-export type Route = "overview" | "providers" | "models";
+export type Route = "overview" | "providers" | "models" | "stats";
 
 const DEFAULT: Route = "overview";
 
 function parseHash(): Route {
   const raw = window.location.hash.replace(/^#\/?/, "").split("/")[0];
-  if (raw === "providers" || raw === "models" || raw === "overview") return raw;
+  if (raw === "providers" || raw === "models" || raw === "overview" || raw === "stats") return raw;
   return DEFAULT;
 }
 

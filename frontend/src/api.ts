@@ -1,4 +1,5 @@
 import { clearToken, getToken, UNAUTH_EVENT } from "./auth";
+import type { TokenStatsResponse, TokenTrendResponse } from "./types";
 
 interface ApiOptions {
   method?: string;
@@ -37,4 +38,13 @@ export async function api<T = any>(path: string, options: ApiOptions = {}): Prom
   }
 
   return data as T;
+}
+
+export async function fetchTokenStats(period?: string): Promise<TokenStatsResponse> {
+  const query = period ? `?period=${period}` : "";
+  return api<TokenStatsResponse>(`/api/stats/tokens${query}`);
+}
+
+export async function fetchTokenTrend(range: string = "30d"): Promise<TokenTrendResponse> {
+  return api<TokenTrendResponse>(`/api/stats/tokens/trend?range=${range}`);
 }

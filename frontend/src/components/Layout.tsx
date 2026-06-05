@@ -15,6 +15,7 @@ const NAV: { route: Route; label: string }[] = [
   { route: "overview", label: "概览" },
   { route: "providers", label: "Provider 管理" },
   { route: "models", label: "模型管理" },
+  { route: "stats", label: "用量统计" },
 ];
 
 export function Layout({ route, onLogout, children }: Props) {

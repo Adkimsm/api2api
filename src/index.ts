@@ -4,6 +4,7 @@ import { addCors, corsHeaders, error, json } from "./http";
 import { providerRoutes } from "./providers";
 import { modelRoutes, syncProviderModels } from "./models";
 import { openaiRoutes } from "./openai";
+import { statsRoutes } from "./stats";
 import { getProvider } from "./db";
 import type { Env } from "./types";
 
@@ -33,6 +34,7 @@ app.post("/api/providers/:id/sync", async (c) => {
 });
 app.route("/api/providers", providerRoutes);
 app.route("/api/models", modelRoutes);
+app.route("/api/stats", statsRoutes);
 
 app.use("/v1/*", requireServiceKey);
 app.route("/v1", openaiRoutes);

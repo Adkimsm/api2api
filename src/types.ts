@@ -34,3 +34,36 @@ export type ModelWithProviderRow = ModelRow & {
   provider_enabled: number;
   encrypted_api_key: string;
 };
+
+export type TokenUsageRow = {
+  id: string;
+  model_id: string;
+  public_model_id: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  created_at: string;
+};
+
+export type TokenStats = {
+  total_requests: number;
+  total_tokens: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+};
+
+export type ModelTokenStats = {
+  public_model_id: string;
+  request_count: number;
+  total_tokens: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+};
+
+export type PeriodTokenStats = {
+  period: string;
+  request_count: number;
+  total_tokens: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+};

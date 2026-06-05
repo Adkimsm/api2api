@@ -1,4 +1,4 @@
-import type { Env, ModelRow, ModelWithProviderRow, ProviderRow } from "./types";
+import type { Env, ModelRow, ModelWithProviderRow, ModelTokenStats, PeriodTokenStats, ProviderRow, TokenStats } from "./types";
 
 export function nowIso(): string {
   return new Date().toISOString();
@@ -75,4 +75,51 @@ export async function getModel(env: Env, modelId: string): Promise<ModelRow | nu
 export async function countProviderModels(env: Env, providerId: string): Promise<number> {
   const row = await env.DB.prepare(`SELECT COUNT(*) AS count FROM models WHERE provider_id = ?`).bind(providerId).first<{ count: number }>();
   return row?.count ?? 0;
+}
+
+export async function insertTokenUsage(
+  env: Env,
+  modelId: string,
+  publicModelId: string,
+  promptTokens: number,
+  completionTokens: number,
+  totalTokens: number
+): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO token_usage (id, model_id, public_model_id, prompt_tokens, completion_tokens, total_tokens, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).bind(id("usage"), modelId, publicModelId, promptTokens, completionTokens, totalTokens, nowIso()).run();
+}
+
+export async function getTokenStats(env: Env, since?: string): Promise<TokenStats> {
+  let query = `SELECT COUNT(*) AS total_requests, COALESCE(SUM(total_tokens), 0) AS total_tokens, COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens, COALESCE(SUM(completion_tokens), 0) AS completion_tokens FROM token_usage`;
+  const stmt = since ? env.DB.prepare(query + ` WHERE created_at >= ?`).bind(since) : env.DB.prepare(query);
+  const row = await stmt.first<TokenStats>();
+  return row ?? { total_requests: 0, total_tokens: 0, prompt_tokens: 0, completion_tokens: 0 };
+}
+
+export async function getTokenStatsByModel(env: Env, since?: string): Promise<ModelTokenStats[]> {
+  let query = `SELECT public_model_id, COUNT(*) AS request_count, COALESCE(SUM(total_tokens), 0) AS total_tokens, COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens, COALESCE(SUM(completion_tokens), 0) AS completion_tokens FROM token_usage`;
+  const base = since ? query + ` WHERE created_at >= ?` : query;
+  const stmt = since
+    ? env.DB.prepare(base + ` GROUP BY public_model_id ORDER BY total_tokens DESC`).bind(since)
+    : env.DB.prepare(base + ` GROUP BY public_model_id ORDER BY total_tokens DESC`);
+  const result = await stmt.all<ModelTokenStats>();
+  return result.results ?? [];
+}
+
+export async function getTokenStatsByDay(env: Env, days: number): Promise<PeriodTokenStats[]> {
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+  const result = await env.DB.prepare(
+    `SELECT DATE(created_at) AS period, COUNT(*) AS request_count, COALESCE(SUM(total_tokens), 0) AS total_tokens, COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens, COALESCE(SUM(completion_tokens), 0) AS completion_tokens FROM token_usage WHERE created_at >= ? GROUP BY DATE(created_at) ORDER BY period ASC`
+  ).bind(since).all<PeriodTokenStats>();
+  return result.results ?? [];
+}
+
+export async function getTokenStatsByMonth(env: Env, months: number): Promise<PeriodTokenStats[]> {
+  const since = new Date();
+  since.setMonth(since.getMonth() - months);
+  const result = await env.DB.prepare(
+    `SELECT STRFTIME('%Y-%m', created_at) AS period, COUNT(*) AS request_count, COALESCE(SUM(total_tokens), 0) AS total_tokens, COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens, COALESCE(SUM(completion_tokens), 0) AS completion_tokens FROM token_usage WHERE created_at >= ? GROUP BY STRFTIME('%Y-%m', created_at) ORDER BY period ASC`
+  ).bind(since.toISOString()).all<PeriodTokenStats>();
+  return result.results ?? [];
 }

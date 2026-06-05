@@ -10,6 +10,7 @@ import { useHashRoute } from "./router";
 import { Models } from "./pages/Models";
 import { Overview } from "./pages/Overview";
 import { Providers } from "./pages/Providers";
+import { Stats } from "./pages/Stats";
 import type { Config, Model, Provider, StatusKind } from "./types";
 
 function notify(text: string, kind: StatusKind = "info") {
@@ -114,6 +115,7 @@ export function App() {
             {route === "overview" && <Overview />}
             {route === "providers" && <Providers />}
             {route === "models" && <Models />}
+            {route === "stats" && <Stats />}
           </Layout>
         </AdminDataContext.Provider>
       ) : (

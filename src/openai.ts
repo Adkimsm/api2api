@@ -1,18 +1,130 @@
 import { Hono } from "hono";
-import type { Context } from "hono";
+import type { Context, ExecutionContext } from "hono";
 import { decryptApiKey } from "./crypto";
-import { findSelectedModel } from "./db";
+import { findSelectedModel, insertTokenUsage } from "./db";
 import { error, filteredRequestHeaders, filterResponseHeaders, json } from "./http";
 import { selectedModelsResponse } from "./models";
-import type { Env } from "./types";
+import type { Env, ModelWithProviderRow } from "./types";
 
 type OpenAIRequestBody = {
   model?: unknown;
+  stream?: boolean;
   [key: string]: unknown;
+};
+
+type UsageResponse = {
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
 };
 
 function buildUpstreamUrl(baseUrl: string, endpoint: string): string {
   return `${baseUrl.replace(/\/+$/, "")}${endpoint}`;
+}
+
+function persistUsage(ctx: ExecutionContext, model: ModelWithProviderRow, usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }) {
+  const prompt = usage.prompt_tokens ?? 0;
+  const completion = usage.completion_tokens ?? 0;
+  const total = usage.total_tokens ?? (prompt + completion);
+  if (total > 0) {
+    ctx.waitUntil(
+      // env.DB is accessed inside db.ts via env param, but we need the env here
+      // We'll pass a minimal object that satisfies the insertTokenUsage signature
+      // Actually, insertTokenUsage takes Env, so we need to capture env
+      // Let's refactor: we'll call it differently
+      // For now, use a closure approach
+      Promise.resolve()
+    );
+  }
+}
+
+async function handleNonStream(
+  c: Context<{ Bindings: Env }>,
+  upstream: Response,
+  model: ModelWithProviderRow
+): Promise<Response> {
+  const cloned = upstream.clone();
+  const body = (await cloned.json()) as UsageResponse;
+
+  if (body.usage) {
+    const prompt = body.usage.prompt_tokens ?? 0;
+    const completion = body.usage.completion_tokens ?? 0;
+    const total = body.usage.total_tokens ?? (prompt + completion);
+    if (total > 0) {
+      c.executionCtx.waitUntil(
+        insertTokenUsage(c.env, model.id, model.public_model_id, prompt, completion, total)
+      );
+    }
+  }
+
+  return new Response(upstream.body, {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers: filterResponseHeaders(upstream.headers),
+  });
+}
+
+function handleStream(
+  c: Context<{ Bindings: Env }>,
+  upstream: Response,
+  model: ModelWithProviderRow
+): Response {
+  const contentType = upstream.headers.get("content-type") || "";
+  const isSSE = contentType.includes("text/event-stream");
+
+  if (!isSSE) {
+    return new Response(upstream.body, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers: filterResponseHeaders(upstream.headers),
+    });
+  }
+
+  let buffer = "";
+  let lastUsage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | null = null;
+
+  const transformer = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      controller.enqueue(chunk);
+
+      buffer += new TextDecoder().decode(chunk);
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (line.startsWith("data: ") && !line.includes("[DONE]")) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.usage) {
+              lastUsage = data.usage;
+            }
+          } catch {
+            // ignore parse errors
+          }
+        }
+      }
+    },
+    flush() {
+      if (lastUsage) {
+        const prompt = lastUsage.prompt_tokens ?? 0;
+        const completion = lastUsage.completion_tokens ?? 0;
+        const total = lastUsage.total_tokens ?? (prompt + completion);
+        if (total > 0) {
+          c.executionCtx.waitUntil(
+            insertTokenUsage(c.env, model.id, model.public_model_id, prompt, completion, total)
+          );
+        }
+      }
+    },
+  });
+
+  return new Response(upstream.body!.pipeThrough(transformer), {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers: filterResponseHeaders(upstream.headers),
+  });
 }
 
 async function proxyOpenAI(c: Context<{ Bindings: Env }>, endpoint: "/chat/completions" | "/responses") {
@@ -46,11 +158,19 @@ async function proxyOpenAI(c: Context<{ Bindings: Env }>, endpoint: "/chat/compl
     redirect: "follow"
   });
 
-  return new Response(upstream.body, {
-    status: upstream.status,
-    statusText: upstream.statusText,
-    headers: filterResponseHeaders(upstream.headers)
-  });
+  if (!upstream.ok) {
+    return new Response(upstream.body, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers: filterResponseHeaders(upstream.headers),
+    });
+  }
+
+  const isStream = body.stream === true;
+  if (isStream) {
+    return handleStream(c, upstream, model);
+  }
+  return handleNonStream(c, upstream, model);
 }
 
 export const openaiRoutes = new Hono<{ Bindings: Env }>();
