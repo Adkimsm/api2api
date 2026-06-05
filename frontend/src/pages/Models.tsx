@@ -49,9 +49,21 @@ export function Models() {
     setBusy(true);
     const id = toast.loading("正在同步所有 provider 模型...");
     try {
-      await api("/api/models/sync-all", { method: "POST" });
+      const res = await api("/api/models/sync-all", { method: "POST" });
       await reload();
-      toast.success("全部同步完成", { id });
+
+      const errors = res.data.filter((r: any) => r.error);
+      if (errors.length === 0) {
+        toast.success("全部同步完成", { id });
+      } else {
+        const failedNames = errors
+          .map((e: any) => `${e.providerName}: ${e.error}`)
+          .join("\n");
+        toast.error(
+          `以下 ${errors.length} 个 provider 同步失败：\n${failedNames}`,
+          { id, duration: 8000 }
+        );
+      }
     } catch (err) {
       toast.error((err as Error).message, { id });
     } finally {

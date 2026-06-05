@@ -142,7 +142,12 @@ modelRoutes.post("/sync-all", async (c) => {
   const providers = await listProviders(c.env);
   const results = [];
   for (const provider of providers) {
-    results.push(await syncProviderModels(c.env, provider));
+    try {
+      results.push(await syncProviderModels(c.env, provider));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      results.push({ providerId: provider.id, providerName: provider.name, error: message });
+    }
   }
   return json({ data: results });
 });
