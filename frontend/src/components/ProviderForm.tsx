@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
+import type { ChangeEvent } from "react";
+import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +15,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { toolTemplates } from "@/data/toolTemplates";
 import { api } from "../api";
 import { useAdminData } from "../hooks/useAdminData";
 import type { Provider } from "../types";
@@ -38,6 +43,8 @@ export function ProviderForm({ open, onOpenChange, editing }: Props) {
   const { reload } = useAdminData();
   const [state, setState] = useState<FormState>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -53,7 +60,53 @@ export function ProviderForm({ open, onOpenChange, editing }: Props) {
     } else {
       setState(EMPTY);
     }
+    setShowTemplates(false);
+    setSelectedTemplate("");
   }, [open, editing]);
+
+  function insertTemplate() {
+    if (!selectedTemplate) {
+      toast.error("请先选择一个模板");
+      return;
+    }
+
+    const template = toolTemplates.find((item) => item.id === selectedTemplate);
+    if (!template) return;
+
+    try {
+      const current = state.injectedTools.trim() ? JSON.parse(state.injectedTools) : [];
+      if (!Array.isArray(current)) {
+        toast.error("当前工具定义必须是 JSON 数组，修正后再插入模板");
+        return;
+      }
+
+      const merged = [...current];
+      const existingFunctionNames = new Set(
+        current
+          .filter((tool) => tool && typeof tool === "object" && tool.type === "function" && typeof tool.name === "string")
+          .map((tool) => tool.name)
+      );
+      const toInsert = Array.isArray(template.tool) ? template.tool : [template.tool];
+      let skipped = 0;
+
+      for (const tool of toInsert) {
+        if (tool.type === "function" && typeof tool.name === "string") {
+          if (existingFunctionNames.has(tool.name)) {
+            skipped++;
+            continue;
+          }
+          existingFunctionNames.add(tool.name);
+        }
+        merged.push(tool);
+      }
+
+      setState({ ...state, injectedTools: JSON.stringify(merged, null, 2) });
+      setSelectedTemplate("");
+      toast.success(skipped > 0 ? `已插入模板，跳过 ${skipped} 个重复 function` : `已插入模板：${template.name}`);
+    } catch (err) {
+      toast.error("当前工具定义 JSON 格式错误：" + (err as Error).message);
+    }
+  }
 
   async function save() {
     if (!state.name.trim() || !state.baseUrl.trim()) {
@@ -152,48 +205,84 @@ export function ProviderForm({ open, onOpenChange, editing }: Props) {
               onChange={(e) => setState({ ...state, apiKey: e.target.value })}
             />
           </div>
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="provider-enabled"
-            checked={state.enabled}
-            onCheckedChange={(v) => setState({ ...state, enabled: v === true })}
-          />
-          <Label htmlFor="provider-enabled" className="cursor-pointer text-sm font-normal">
-            启用
-          </Label>
-        </div>
-
-        {/* Tool injection configuration */}
-        <div className="space-y-4 rounded-lg border p-4 bg-muted/30">
           <div className="flex items-center gap-2">
             <Checkbox
-              id="provider-inject-tools"
-              checked={state.injectTools}
-              onCheckedChange={(v) => setState({ ...state, injectTools: v === true })}
+              id="provider-enabled"
+              checked={state.enabled}
+              onCheckedChange={(v) => setState({ ...state, enabled: v === true })}
             />
-            <Label htmlFor="provider-inject-tools" className="cursor-pointer text-sm font-normal">
-              启用工具注入
+            <Label htmlFor="provider-enabled" className="cursor-pointer text-sm font-normal">
+              启用
             </Label>
           </div>
 
-          {state.injectTools && (
-            <div className="space-y-2">
-              <Label htmlFor="injected-tools">工具定义（OpenAI Tools JSON 数组）</Label>
-              <Textarea
-                id="injected-tools"
-                placeholder='[{"type":"function","name":"get_weather","description":"获取天气信息","parameters":{"type":"object","properties":{"location":{"type":"string"}},"required":["location"]}}]'
-                className="font-mono text-xs min-h-[120px]"
-                rows={8}
-                value={state.injectedTools}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setState({ ...state, injectedTools: e.target.value })}
+          {/* Tool injection configuration */}
+          <div className="space-y-4 rounded-lg border p-4 bg-muted/30">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="provider-inject-tools"
+                checked={state.injectTools}
+                onCheckedChange={(v) => setState({ ...state, injectTools: v === true })}
               />
-              <p className="text-xs text-muted-foreground">
-                转发请求时会将这些工具与客户端提供的工具合并（同名 function 会保留客户端的定义）。支持 function、file_search、web_search、code_interpreter 等所有 OpenAI 工具类型。
-              </p>
+              <Label htmlFor="provider-inject-tools" className="cursor-pointer text-sm font-normal">
+                启用工具注入
+              </Label>
             </div>
-          )}
+
+            {state.injectTools && (
+              <>
+                <Collapsible open={showTemplates} onOpenChange={setShowTemplates}>
+                  <CollapsibleTrigger asChild>
+                    <Button type="button" variant="outline" size="sm" className="w-full justify-between">
+                      从模板添加
+                      <ChevronDown className={`h-4 w-4 transition-transform ${showTemplates ? "rotate-180" : ""}`} />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-2 space-y-2">
+                    <div className="flex gap-2">
+                      <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="选择工具模板..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {toolTemplates.map((template) => (
+                            <SelectItem key={template.id} value={template.id}>
+                              {template.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button type="button" size="sm" onClick={insertTemplate} disabled={!selectedTemplate}>
+                        插入
+                      </Button>
+                    </div>
+                    {selectedTemplate && (
+                      <p className="text-xs text-muted-foreground">
+                        {toolTemplates.find((template) => template.id === selectedTemplate)?.description}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">插入后可在下方 JSON 编辑器中自定义参数。</p>
+                  </CollapsibleContent>
+                </Collapsible>
+
+                <div className="space-y-2">
+                  <Label htmlFor="injected-tools">工具定义（OpenAI Tools JSON 数组）</Label>
+                  <Textarea
+                    id="injected-tools"
+                    placeholder='[{"type":"function","name":"get_weather","description":"获取天气信息","parameters":{"type":"object","properties":{"location":{"type":"string"}},"required":["location"]}}]'
+                    className="font-mono text-xs min-h-[120px]"
+                    rows={8}
+                    value={state.injectedTools}
+                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setState({ ...state, injectedTools: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    转发请求时会将这些工具与客户端提供的工具合并（同名 function 会保留客户端的定义）。支持 function、file_search、web_search、code_interpreter 等所有 OpenAI 工具类型。
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
         </div>
-      </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
             取消
