@@ -5,6 +5,8 @@ export interface Provider {
   enabled: boolean;
   modelCount: number;
   lastSyncedAt: string | null;
+  injectTools: boolean;
+  injectedTools: string | null;
 }
 
 export interface Model {

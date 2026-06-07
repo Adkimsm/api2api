@@ -154,7 +154,53 @@ async function proxyOpenAI(c: Context<{ Bindings: Env }>, endpoint: "/chat/compl
   }
 
   const providerApiKey = await decryptApiKey(model.encrypted_api_key, c.env);
+  
+  // Construct upstream request body
   const upstreamBody = { ...body, model: model.remote_model_id };
+
+  // Tool injection logic (Merge strategy)
+  if (model.inject_tools === 1 && model.injected_tools) {
+    try {
+      const injectedTools = JSON.parse(model.injected_tools);
+      if (Array.isArray(injectedTools) && injectedTools.length > 0) {
+        const clientTools = Array.isArray(body.tools) ? body.tools : [];
+        
+        // Merge strategy: combine client and injected tools
+        const merged = [...clientTools];
+        
+        // Build set of existing function tool names (for deduplication)
+        const existingFunctionNames = new Set<string>();
+        for (const tool of clientTools) {
+          if (tool && typeof tool === 'object' && tool.type === 'function' && tool.name) {
+            existingFunctionNames.add(tool.name);
+          }
+        }
+        
+        // Add injected tools (deduplicate function types by name)
+        for (const injectedTool of injectedTools) {
+          if (!injectedTool || typeof injectedTool !== 'object') continue;
+          
+          if (injectedTool.type === 'function' && injectedTool.name) {
+            // Function type: check if tool with same name already exists
+            if (!existingFunctionNames.has(injectedTool.name)) {
+              merged.push(injectedTool);
+              existingFunctionNames.add(injectedTool.name);
+            }
+            // If exists, skip (keep client's definition)
+          } else {
+            // Non-function type: add directly
+            merged.push(injectedTool);
+          }
+        }
+        
+        upstreamBody.tools = merged;
+      }
+    } catch (err) {
+      // JSON parse failed, ignore injection and continue with original request
+      console.error('Failed to parse or merge injected_tools:', err);
+    }
+  }
+
   const headers = filteredRequestHeaders(c.req.raw);
   headers.set("authorization", `Bearer ${providerApiKey}`);
   headers.set("content-type", "application/json");

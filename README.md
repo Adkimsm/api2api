@@ -11,6 +11,7 @@ Cloudflare Workers 上的私人 OpenAI-compatible 聚合网关。
 - `/admin` 管理后台：React + Vite + Tailwind v4 + shadcn/ui，跟随系统亮暗主题
 - 通过 Cloudflare Workers Assets 直接提供静态资源
 - 添加、编辑、删除、启用、禁用 provider
+- **工具注入**：为每个 provider 配置要注入的 OpenAI tools，转发时自动合并到请求中
 - 从每个 provider 的 `GET /v1/models` 同步模型并存储到 D1
 - 管理页面选择要暴露的模型
 - 可编辑公开模型 ID，例如 `openrouter/openai/gpt-4o-mini`
@@ -72,10 +73,11 @@ api2api/
 │   ├── auth.ts           ADMIN_TOKEN / SERVICE_API_KEY 鉴权中间件
 │   ├── providers.ts      /api/providers
 │   ├── models.ts         /api/models + 同步逻辑
-│   ├── openai.ts         /v1/* OpenAI-compatible 转发
+│   ├── openai.ts         /v1/* OpenAI-compatible 转发 + 工具注入
 │   ├── stats.ts          /api/stats Token 用量统计
 │   ├── db.ts             D1 查询
 │   ├── crypto.ts         provider API Key 加解密
+│   ├── validation.ts     工具定义 JSON 验证
 │   ├── http.ts           JSON / CORS / 错误响应
 │   └── types.ts          Env / 业务类型
 ├── frontend/             管理后台（Vite + React + Tailwind v4 + shadcn/ui）
@@ -92,7 +94,7 @@ api2api/
 │   │   ├── router.ts     useHashRoute hook
 │   │   ├── index.css     Tailwind + shadcn 主题变量
 │   │   ├── components/   Layout / Login / ProviderForm / ProviderCard / ModelRow
-│   │   ├── components/ui 直接拉自 shadcn/ui
+│   │   ├── components/ui 直接拉自 shadcn/ui + Textarea
 │   │   ├── pages/        Overview / Providers / Models / Stats
 │   │   └── hooks/        useAdminData (Context)
 │   └── dist/             vite build 产物（部署时由 Workers Assets 上传）
@@ -336,6 +338,32 @@ https://api2api.your-subdomain.workers.dev/v1
 - `Base URL`：必须包含 `/v1`
 - `API Key`：上游 provider 的 API key
 - `Enabled`：是否启用
+- `启用工具注入`：是否在转发请求时注入额外的工具定义
+- `工具定义`：OpenAI tools 数组的 JSON 格式，例如：
+
+```json
+[
+  {
+    "type": "function",
+    "name": "get_weather",
+    "description": "获取天气信息",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "location": { "type": "string" }
+      },
+      "required": ["location"]
+    }
+  },
+  {
+    "type": "web_search"
+  }
+]
+```
+
+支持所有 OpenAI 工具类型：`function`、`file_search`、`web_search`、`code_interpreter`、`computer`、`mcp` 等。
+
+转发时使用 **Merge 策略**：客户端提供的工具和注入的工具会合并，如果是同名的 `function` 类型工具则保留客户端的定义。
 
 常见示例：
 

@@ -3,12 +3,15 @@ import { encryptApiKey } from "./crypto";
 import { error, json, readJsonBody } from "./http";
 import { countProviderModels, countAllProviderModels, getProvider, id, listProviders, normalizeBaseUrl, nowIso } from "./db";
 import type { Env } from "./types";
+import { validateToolsJson } from "./validation";
 
 type ProviderInput = {
   name?: string;
   baseUrl?: string;
   apiKey?: string;
   enabled?: boolean;
+  injectTools?: boolean;
+  injectedTools?: string;
 };
 
 function publicProvider(row: Awaited<ReturnType<typeof listProviders>>[number], modelCount = 0) {
@@ -21,7 +24,9 @@ function publicProvider(row: Awaited<ReturnType<typeof listProviders>>[number], 
     lastSyncedAt: row.last_synced_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    modelCount
+    modelCount,
+    injectTools: row.inject_tools === 1,
+    injectedTools: row.injected_tools || null,
   };
 }
 
@@ -50,15 +55,28 @@ providerRoutes.post("/", async (c) => {
   if (!baseUrl) return error("Provider baseUrl is required");
   if (!apiKey) return error("Provider apiKey is required");
 
+  // Validate injected tools if enabled
+  if (body.injectTools && body.injectedTools) {
+    const validationError = validateToolsJson(body.injectedTools);
+    if (validationError) {
+      return error(`Invalid injected tools: ${validationError}`, 400, "invalid_tools");
+    }
+  }
+
   const now = nowIso();
   const providerId = id("prov");
   const encryptedApiKey = await encryptApiKey(apiKey, c.env);
 
+  const injectTools = body.injectTools === true ? 1 : 0;
+  const injectedTools = (body.injectTools && body.injectedTools?.trim()) 
+    ? body.injectedTools.trim() 
+    : null;
+
   try {
     await c.env.DB.prepare(
-      `INSERT INTO providers (id, name, base_url, encrypted_api_key, enabled, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).bind(providerId, name, baseUrl, encryptedApiKey, body.enabled === false ? 0 : 1, now, now).run();
+      `INSERT INTO providers (id, name, base_url, encrypted_api_key, enabled, inject_tools, injected_tools, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(providerId, name, baseUrl, encryptedApiKey, body.enabled === false ? 0 : 1, injectTools, injectedTools, now, now).run();
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to create provider";
     if (message.toLowerCase().includes("unique")) return error("Provider name already exists", 409, "conflict");
@@ -83,15 +101,35 @@ providerRoutes.patch("/:id", async (c) => {
     : provider.encrypted_api_key;
   const enabled = body.enabled === undefined ? provider.enabled : body.enabled ? 1 : 0;
 
+  // Handle injected tools
+  const injectTools = body.injectTools === undefined 
+    ? provider.inject_tools 
+    : body.injectTools ? 1 : 0;
+  
+  let injectedTools = provider.injected_tools;
+  if (body.injectTools !== undefined) {
+    if (body.injectTools && body.injectedTools !== undefined) {
+      // Validate new tools definition
+      const validationError = validateToolsJson(body.injectedTools);
+      if (validationError) {
+        return error(`Invalid injected tools: ${validationError}`, 400, "invalid_tools");
+      }
+      injectedTools = body.injectedTools.trim() || null;
+    } else if (!body.injectTools) {
+      // Clear tools when disabled
+      injectedTools = null;
+    }
+  }
+
   if (!name) return error("Provider name is required");
   if (!baseUrl) return error("Provider baseUrl is required");
 
   try {
     await c.env.DB.prepare(
       `UPDATE providers
-       SET name = ?, base_url = ?, encrypted_api_key = ?, enabled = ?, updated_at = ?
+       SET name = ?, base_url = ?, encrypted_api_key = ?, enabled = ?, inject_tools = ?, injected_tools = ?, updated_at = ?
        WHERE id = ?`
-    ).bind(name, baseUrl, encryptedApiKey, enabled, nowIso(), provider.id).run();
+    ).bind(name, baseUrl, encryptedApiKey, enabled, injectTools, injectedTools, nowIso(), provider.id).run();
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to update provider";
     if (message.toLowerCase().includes("unique")) return error("Provider name already exists", 409, "conflict");

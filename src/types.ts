@@ -15,6 +15,8 @@ export type ProviderRow = {
   last_synced_at: string | null;
   created_at: string;
   updated_at: string;
+  inject_tools: number;
+  injected_tools: string | null;
 };
 
 export type ModelRow = {
@@ -33,6 +35,8 @@ export type ModelWithProviderRow = ModelRow & {
   provider_base_url: string;
   provider_enabled: number;
   encrypted_api_key: string;
+  inject_tools: number;
+  injected_tools: string | null;
 };
 
 export type TokenUsageRow = {
