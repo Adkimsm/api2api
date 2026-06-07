@@ -84,12 +84,21 @@ function handleStream(
 
   let buffer = "";
   let lastUsage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | null = null;
+  const decoder = new TextDecoder(); // Reuse decoder instance
+  const MAX_BUFFER_SIZE = 131072; // 128KB buffer limit
 
   const transformer = new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
+      // Enqueue immediately for transparent passthrough
       controller.enqueue(chunk);
 
-      buffer += new TextDecoder().decode(chunk);
+      buffer += decoder.decode(chunk, { stream: true });
+      
+      // Limit buffer size to prevent memory/CPU accumulation on long responses
+      if (buffer.length > MAX_BUFFER_SIZE) {
+        buffer = buffer.slice(-MAX_BUFFER_SIZE);
+      }
+      
       const lines = buffer.split("\n");
       buffer = lines.pop() || "";
 

@@ -3,12 +3,19 @@ import type { Env } from "./types";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
+// Cache for derived encryption keys (module-level, persists within Worker instance)
+const keyCache = new Map<string, CryptoKey>();
+
 function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
+  const CHUNK_SIZE = 8192;
+  const chunks: string[] = [];
+  
+  for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+    const chunk = bytes.subarray(i, i + CHUNK_SIZE);
+    chunks.push(String.fromCharCode(...chunk));
   }
-  return btoa(binary);
+  
+  return btoa(chunks.join(''));
 }
 
 function base64ToBytes(value: string): Uint8Array {
@@ -21,8 +28,18 @@ function base64ToBytes(value: string): Uint8Array {
 }
 
 async function keyFromSecret(secret: string): Promise<CryptoKey> {
+  // Use a hash of the secret as cache key to avoid storing plaintext
+  const cacheKey = secret.substring(0, 16);
+  
+  if (keyCache.has(cacheKey)) {
+    return keyCache.get(cacheKey)!;
+  }
+  
   const digest = await crypto.subtle.digest("SHA-256", encoder.encode(secret));
-  return crypto.subtle.importKey("raw", digest, "AES-GCM", false, ["encrypt", "decrypt"]);
+  const key = await crypto.subtle.importKey("raw", digest, "AES-GCM", false, ["encrypt", "decrypt"]);
+  
+  keyCache.set(cacheKey, key);
+  return key;
 }
 
 export async function encryptApiKey(apiKey: string, env: Env): Promise<string> {

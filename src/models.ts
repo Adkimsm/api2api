@@ -140,16 +140,29 @@ modelRoutes.delete("/:id", async (c) => {
 
 modelRoutes.post("/sync-all", async (c) => {
   const providers = await listProviders(c.env);
-  const results = [];
-  for (const provider of providers) {
-    try {
-      results.push(await syncProviderModels(c.env, provider));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      results.push({ providerId: provider.id, providerName: provider.name, error: message });
-    }
-  }
-  return json({ data: results });
+  
+  // Parallelize sync operations to reduce total time
+  const results = await Promise.allSettled(
+    providers.map(provider => syncProviderModels(c.env, provider))
+  );
+  
+  // Normalize results
+  return json({ 
+    data: results.map((result, index) => {
+      if (result.status === 'fulfilled') {
+        return result.value;
+      } else {
+        const provider = providers[index];
+        const message = result.reason instanceof Error ? result.reason.message : "Unknown error";
+        return { 
+          providerId: provider.id, 
+          providerName: provider.name, 
+          error: message,
+          skipped: false 
+        };
+      }
+    })
+  });
 });
 
 modelRoutes.patch("/:id", async (c) => {

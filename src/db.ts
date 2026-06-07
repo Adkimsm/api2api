@@ -123,3 +123,11 @@ export async function getTokenStatsByMonth(env: Env, months: number): Promise<Pe
   ).bind(since.toISOString()).all<PeriodTokenStats>();
   return result.results ?? [];
 }
+
+export async function countAllProviderModels(env: Env): Promise<Map<string, number>> {
+  const result = await env.DB.prepare(
+    `SELECT provider_id, COUNT(*) AS count FROM models GROUP BY provider_id`
+  ).all<{ provider_id: string; count: number }>();
+  
+  return new Map((result.results ?? []).map(row => [row.provider_id, row.count]));
+}

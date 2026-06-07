@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { encryptApiKey } from "./crypto";
 import { error, json, readJsonBody } from "./http";
-import { countProviderModels, getProvider, id, listProviders, normalizeBaseUrl, nowIso } from "./db";
+import { countProviderModels, countAllProviderModels, getProvider, id, listProviders, normalizeBaseUrl, nowIso } from "./db";
 import type { Env } from "./types";
 
 type ProviderInput = {
@@ -29,9 +29,12 @@ export const providerRoutes = new Hono<{ Bindings: Env }>();
 
 providerRoutes.get("/", async (c) => {
   const providers = await listProviders(c.env);
-  const data = await Promise.all(
-    providers.map(async (provider) => publicProvider(provider, await countProviderModels(c.env, provider.id)))
+  const modelCounts = await countAllProviderModels(c.env); // Batch query optimization
+  
+  const data = providers.map(provider => 
+    publicProvider(provider, modelCounts.get(provider.id) ?? 0)
   );
+  
   return json({ data });
 });
 
