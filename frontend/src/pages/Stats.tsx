@@ -46,9 +46,11 @@ function MiniBarChart({ data, maxVal }: { data: PeriodTokenStats[]; maxVal: numb
       {data.map((d) => {
         const h = maxVal > 0 ? (d.total_tokens / maxVal) * 100 : 0;
         return (
-          <div key={d.period} className="flex-1 flex flex-col items-center gap-1">
-            <div className="w-full bg-primary/20 rounded-t" style={{ height: `${Math.max(h, 2)}%` }}>
-              <div className="w-full bg-primary rounded-t" style={{ height: "100%" }} />
+          <div key={d.period} className="flex-1 h-full flex flex-col items-center gap-1 min-w-0">
+            <div className="w-full flex-1 flex items-end">
+              <div className="w-full bg-primary/20 rounded-t overflow-hidden" style={{ height: `${Math.max(h, 2)}%` }}>
+                <div className="w-full bg-primary rounded-t" style={{ height: "100%" }} />
+              </div>
             </div>
             <span className="text-[10px] text-muted-foreground truncate w-full text-center">{d.period.slice(5)}</span>
           </div>
