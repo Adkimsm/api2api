@@ -3,6 +3,14 @@ import { BarChart3, TrendingUp, Activity, Layers } from "lucide-react";
 import { fetchTokenStats, fetchTokenTrend } from "../api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { ModelTokenStats, PeriodTokenStats, TokenStats } from "../types";
 
 type Period = "all" | "today" | "week" | "month";
@@ -152,37 +160,37 @@ export function Stats() {
             <div className="text-center text-muted-foreground py-8">暂无数据</div>
           ) : (
             <div className="rounded-md border">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="text-left p-3 font-medium">模型</th>
-                    <th className="text-right p-3 font-medium">请求数</th>
-                    <th className="text-right p-3 font-medium">总 Token</th>
-                    <th className="text-right p-3 font-medium">输入</th>
-                    <th className="text-right p-3 font-medium">输出</th>
-                    <th className="text-right p-3 font-medium">占比</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table className="min-w-[720px]">
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="text-left">模型</TableHead>
+                    <TableHead className="text-right">请求数</TableHead>
+                    <TableHead className="text-right">总 Token</TableHead>
+                    <TableHead className="text-right">输入</TableHead>
+                    <TableHead className="text-right">输出</TableHead>
+                    <TableHead className="text-right">占比</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {byModel.map((m) => {
                     const pct = overall && overall.total_tokens > 0
                       ? ((m.total_tokens / overall.total_tokens) * 100).toFixed(1)
                       : "0";
                     return (
-                      <tr key={m.public_model_id} className="border-b last:border-0">
-                        <td className="p-3">
+                      <TableRow key={m.public_model_id}>
+                        <TableCell>
                           <Badge variant="outline">{m.public_model_id}</Badge>
-                        </td>
-                        <td className="text-right p-3">{formatNumber(m.request_count)}</td>
-                        <td className="text-right p-3 font-medium">{formatNumber(m.total_tokens)}</td>
-                        <td className="text-right p-3 text-muted-foreground">{formatNumber(m.prompt_tokens)}</td>
-                        <td className="text-right p-3 text-muted-foreground">{formatNumber(m.completion_tokens)}</td>
-                        <td className="text-right p-3">{pct}%</td>
-                      </tr>
+                        </TableCell>
+                        <TableCell className="text-right">{formatNumber(m.request_count)}</TableCell>
+                        <TableCell className="text-right font-medium">{formatNumber(m.total_tokens)}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{formatNumber(m.prompt_tokens)}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{formatNumber(m.completion_tokens)}</TableCell>
+                        <TableCell className="text-right">{pct}%</TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>
