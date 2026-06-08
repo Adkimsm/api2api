@@ -156,7 +156,7 @@ async function proxyOpenAI(c: Context<{ Bindings: Env }>, endpoint: "/chat/compl
   const providerApiKey = await decryptApiKey(model.encrypted_api_key, c.env);
   
   // Construct upstream request body
-  const upstreamBody = { ...body, model: model.remote_model_id };
+  const upstreamBody: OpenAIRequestBody = { ...body, model: model.remote_model_id };
 
   // Tool injection logic (Merge strategy)
   if (model.inject_tools === 1 && model.injected_tools) {

@@ -1,4 +1,4 @@
-import type { Env, ModelRow, ModelWithProviderRow, ModelTokenStats, PeriodTokenStats, ProviderRow, TokenStats } from "./types";
+import type { AppSettingRow, Env, ModelRow, ModelWithProviderRow, ModelTokenStats, PeriodTokenStats, ProviderRow, TokenStats } from "./types";
 
 export function nowIso(): string {
   return new Date().toISOString();
@@ -10,6 +10,28 @@ export function id(prefix: string): string {
 
 export function normalizeBaseUrl(value: string): string {
   return value.trim().replace(/\/+$/, "");
+}
+
+export async function getAppSetting(env: Env, key: string): Promise<string | null> {
+  const row = await env.DB.prepare(`SELECT value FROM app_settings WHERE key = ?`).bind(key).first<Pick<AppSettingRow, "value">>();
+  return row?.value ?? null;
+}
+
+export async function setAppSetting(env: Env, key: string, value: string): Promise<void> {
+  const now = nowIso();
+  await env.DB.prepare(
+    `INSERT INTO app_settings (key, value, updated_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+  ).bind(key, value, now).run();
+}
+
+export async function getAdminToken(env: Env): Promise<string> {
+  return (await getAppSetting(env, "ADMIN_TOKEN")) || env.ADMIN_TOKEN || "";
+}
+
+export async function getServiceApiKey(env: Env): Promise<string> {
+  return (await getAppSetting(env, "SERVICE_API_KEY")) || env.SERVICE_API_KEY || "";
 }
 
 export async function listProviders(env: Env): Promise<ProviderRow[]> {

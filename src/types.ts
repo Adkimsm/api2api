@@ -6,6 +6,12 @@ export type Env = {
   CORS_ORIGIN?: string;
 };
 
+export type AppSettingRow = {
+  key: string;
+  value: string;
+  updated_at: string;
+};
+
 export type ProviderRow = {
   id: string;
   name: string;

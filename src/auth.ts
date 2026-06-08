@@ -1,4 +1,5 @@
 import type { Context, Next } from "hono";
+import { getAdminToken, getServiceApiKey } from "./db";
 import type { Env } from "./types";
 import { error } from "./http";
 
@@ -13,14 +14,14 @@ function checkSecret(actual: string | null, expected: string | undefined): boole
 }
 
 export async function requireAdmin(c: Context<{ Bindings: Env }>, next: Next): Promise<Response | void> {
-  if (!checkSecret(bearerToken(c), c.env.ADMIN_TOKEN)) {
+  if (!checkSecret(bearerToken(c), await getAdminToken(c.env))) {
     return error("Unauthorized", 401, "unauthorized");
   }
   await next();
 }
 
 export async function requireServiceKey(c: Context<{ Bindings: Env }>, next: Next): Promise<Response | void> {
-  if (!checkSecret(bearerToken(c), c.env.SERVICE_API_KEY)) {
+  if (!checkSecret(bearerToken(c), await getServiceApiKey(c.env))) {
     return error("Unauthorized", 401, "unauthorized");
   }
   await next();

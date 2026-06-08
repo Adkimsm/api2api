@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Copy, Download } from "lucide-react";
 import { toast } from "sonner";
+import { api } from "../api";
+import { clearToken } from "../auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,6 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useAdminData } from "../hooks/useAdminData";
 
 const EXPORT_TARGETS = [{ value: "opencode", label: "opencode" }] as const;
@@ -70,11 +74,20 @@ function CopyField({ label, value, monospace = true }: { label: string; value: s
 }
 
 export function Overview() {
-  const { config, models } = useAdminData();
+  const { config, models, reload } = useAdminData();
   const [exportTarget, setExportTarget] = useState<string>(EXPORT_TARGETS[0].value);
+  const [serviceApiKeyInput, setServiceApiKeyInput] = useState(config?.serviceApiKey || "");
+  const [currentAdminToken, setCurrentAdminToken] = useState("");
+  const [newAdminToken, setNewAdminToken] = useState("");
+  const [savingConfig, setSavingConfig] = useState(false);
+
+  useEffect(() => {
+    setServiceApiKeyInput(config?.serviceApiKey || "");
+  }, [config?.serviceApiKey]);
 
   const endpoint = window.location.origin + "/v1";
-  const apiKey = config?.serviceApiKey || "(未设置 SERVICE_API_KEY)";
+  const effectiveServiceApiKey = serviceApiKeyInput || config?.serviceApiKey || "";
+  const apiKey = effectiveServiceApiKey || "(未设置 SERVICE_API_KEY)";
 
   function buildOpencodeConfig() {
     const baseURL = endpoint;
@@ -89,7 +102,7 @@ export function Overview() {
         api2api: {
           npm: "@ai-sdk/openai-compatible",
           name: "api2api",
-          options: { baseURL, apiKey: config?.serviceApiKey || "" },
+          options: { baseURL, apiKey: effectiveServiceApiKey },
           models: modelsMap,
         },
       },
@@ -110,6 +123,45 @@ export function Overview() {
 
   const selectedCount = models.filter((m) => m.selected && m.providerEnabled).length;
 
+  async function saveSecurityConfig() {
+    const serviceApiKey = serviceApiKeyInput.trim();
+    const currentToken = currentAdminToken.trim();
+    const nextToken = newAdminToken.trim();
+    if (!serviceApiKey) {
+      toast.error("SERVICE_API_KEY 不能为空");
+      return;
+    }
+    if (nextToken && !currentToken) {
+      toast.error("修改 ADMIN_TOKEN 需要输入当前 ADMIN_TOKEN");
+      return;
+    }
+
+    setSavingConfig(true);
+    try {
+      await api("/api/config", {
+        method: "PATCH",
+        body: JSON.stringify({
+          serviceApiKey,
+          ...(nextToken ? { currentAdminToken: currentToken, newAdminToken: nextToken } : {}),
+        }),
+      });
+      setCurrentAdminToken("");
+      setNewAdminToken("");
+      if (nextToken) {
+        clearToken();
+        toast.success("配置已保存，请使用新的 ADMIN_TOKEN 重新登录");
+        window.location.reload();
+        return;
+      }
+      await reload();
+      toast.success("配置已保存");
+    } catch (err) {
+      toast.error("保存失败：" + (err as Error).message);
+    } finally {
+      setSavingConfig(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -127,6 +179,54 @@ export function Overview() {
         <CardContent className="space-y-4">
           <CopyField label="API Endpoint" value={endpoint} />
           <CopyField label="SERVICE_API_KEY" value={apiKey} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">安全配置</CardTitle>
+          <CardDescription>
+            后台保存的值会覆盖 Cloudflare 环境变量；ADMIN_TOKEN 不会从后端返回，修改时需要输入当前 token 校验。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="service-api-key">SERVICE_API_KEY</Label>
+            <Input
+              id="service-api-key"
+              value={serviceApiKeyInput}
+              onChange={(event) => setServiceApiKeyInput(event.target.value)}
+              placeholder="sk-api2api-your-key"
+              autoComplete="off"
+            />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="current-admin-token">当前 ADMIN_TOKEN</Label>
+              <Input
+                id="current-admin-token"
+                type="password"
+                value={currentAdminToken}
+                onChange={(event) => setCurrentAdminToken(event.target.value)}
+                placeholder="修改 ADMIN_TOKEN 时必填"
+                autoComplete="current-password"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-admin-token">新的 ADMIN_TOKEN</Label>
+              <Input
+                id="new-admin-token"
+                type="password"
+                value={newAdminToken}
+                onChange={(event) => setNewAdminToken(event.target.value)}
+                placeholder="留空则不修改"
+                autoComplete="new-password"
+              />
+            </div>
+          </div>
+          <Button onClick={saveSecurityConfig} disabled={savingConfig}>
+            {savingConfig ? "保存中..." : "保存配置"}
+          </Button>
         </CardContent>
       </Card>
 
