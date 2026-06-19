@@ -229,39 +229,42 @@ export function Models() {
         </Button>
       </div>
 
-      <div className="border-border bg-card overflow-hidden rounded-lg border">
-        <div ref={scrollRef} className="max-h-[640px] overflow-auto">
-          <div className="min-w-[720px]">
-            <div className={`bg-muted/40 sticky top-0 z-10 grid items-center border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground ${GRID_COLS}`}>
-              <div>暴露</div>
-              <div>Provider</div>
-              <div>Remote Model</div>
-              <div>Public Model ID</div>
-              <div>Last Seen</div>
-              <div></div>
+      <div className="relative">
+        <div className="border-border bg-card overflow-hidden rounded-lg border">
+          <div ref={scrollRef} className="max-h-[640px] overflow-auto">
+            <div className="min-w-[720px]">
+              <div className={`bg-muted/40 sticky top-0 z-10 grid items-center border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground ${GRID_COLS}`}>
+                <div>暴露</div>
+                <div>Provider</div>
+                <div>Remote Model</div>
+                <div>Public Model ID</div>
+                <div>Last Seen</div>
+                <div></div>
+              </div>
+              {visible.length === 0 ? (
+                <div className="text-muted-foreground py-10 text-center text-sm">
+                  暂无模型。请先添加 Provider 并同步，或调整搜索 / 筛选条件。
+                </div>
+              ) : (
+                <div className="relative" style={{ height: rowVirtualizer.getTotalSize() }}>
+                  {rowVirtualizer.getVirtualItems().map((virtualRow) => (
+                    <div
+                      key={virtualRow.key}
+                      className="absolute left-0 top-0 w-full"
+                      style={{
+                        height: virtualRow.size,
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
+                    >
+                      <ModelRow model={visible[virtualRow.index]} gridCols={GRID_COLS} />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            {visible.length === 0 ? (
-              <div className="text-muted-foreground py-10 text-center text-sm">
-                暂无模型。请先添加 Provider 并同步，或调整搜索 / 筛选条件。
-              </div>
-            ) : (
-              <div className="relative" style={{ height: rowVirtualizer.getTotalSize() }}>
-                {rowVirtualizer.getVirtualItems().map((virtualRow) => (
-                  <div
-                    key={virtualRow.key}
-                    className="absolute left-0 top-0 w-full"
-                    style={{
-                      height: virtualRow.size,
-                      transform: `translateY(${virtualRow.start}px)`,
-                    }}
-                  >
-                    <ModelRow model={visible[virtualRow.index]} />
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
+        <div className="bg-gradient-to-l from-background pointer-events-none absolute top-0 right-0 bottom-0 w-8 rounded-r-lg" />
       </div>
 
       <ModelForm open={addOpen} onOpenChange={setAddOpen} />

@@ -19,9 +19,10 @@ import type { Model } from "../types";
 
 interface Props {
   model: Model;
+  gridCols: string;
 }
 
-export const ModelRow = memo(function ModelRow({ model }: Props) {
+export const ModelRow = memo(function ModelRow({ model, gridCols }: Props) {
   const { reload } = useAdminData();
   const [publicId, setPublicId] = useState(model.publicModelId);
   const [savingSelected, setSavingSelected] = useState(false);
@@ -82,7 +83,7 @@ export const ModelRow = memo(function ModelRow({ model }: Props) {
   const dirty = publicId !== model.publicModelId;
 
   return (
-    <div className="grid grid-cols-[40px_100px_minmax(100px,1fr)_minmax(200px,280px)_auto_40px] items-center border-b border-border px-3 py-2 text-sm last:border-b-0">
+    <div className={`grid ${gridCols} items-center border-b border-border px-3 py-2 text-sm last:border-b-0`}>
       <div>
         {savingSelected ? (
           <Loader2 className="text-muted-foreground size-4 animate-spin" />
@@ -94,15 +95,15 @@ export const ModelRow = memo(function ModelRow({ model }: Props) {
           />
         )}
       </div>
-      <div>
+      <div className="min-w-0">
         <Badge variant={model.providerEnabled ? "secondary" : "outline"} className="text-xs font-normal">
           {model.providerName}
         </Badge>
       </div>
       <div className="min-w-0">
-        <code className="font-mono text-xs">{model.remoteModelId}</code>
+        <code className="block truncate font-mono text-xs">{model.remoteModelId}</code>
       </div>
-      <div>
+      <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <Input
             value={publicId}
@@ -125,7 +126,7 @@ export const ModelRow = memo(function ModelRow({ model }: Props) {
           )}
         </div>
       </div>
-      <div className="text-muted-foreground text-xs whitespace-nowrap">{model.lastSeenAt}</div>
+      <div className="min-w-0 truncate text-muted-foreground text-xs whitespace-nowrap">{model.lastSeenAt}</div>
       <div>
         <Button
           variant="ghost"
