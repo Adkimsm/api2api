@@ -143,11 +143,12 @@ export function Models() {
   }
 
   async function bulkSelect(selected: boolean) {
-    if (!visible.length) return;
-    if (!confirm((selected ? "选中" : "取消") + "当前可见的 " + visible.length + " 个模型？")) return;
+    const targets = visible.filter((m) => m.selected !== selected);
+    if (!targets.length) return;
+    if (!confirm((selected ? "选中" : "取消") + targets.length + " 个模型？")) return;
     setBusy(true);
     try {
-      for (const m of visible) {
+      for (const m of targets) {
         await api("/api/models/" + m.id, {
           method: "PATCH",
           body: JSON.stringify({ selected }),
