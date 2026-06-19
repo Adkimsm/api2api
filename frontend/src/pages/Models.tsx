@@ -19,6 +19,7 @@ import { useAdminData } from "../hooks/useAdminData";
 
 const ALL_PROVIDERS = "__all__";
 const ROW_HEIGHT = 44;
+const GRID_COLS = "grid-cols-[40px_100px_minmax(100px,1fr)_minmax(200px,280px)_auto_40px]";
 
 function ModelsSkeleton() {
   return (
@@ -41,25 +42,27 @@ function ModelsSkeleton() {
         <Skeleton className="h-10 w-24" />
       </div>
       <div className="border-border bg-card overflow-hidden rounded-lg border">
-        <div className="bg-muted/40 flex items-center border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground">
-          <div className="w-10 shrink-0">暴露</div>
-          <div className="w-32 shrink-0">Provider</div>
-          <div className="min-w-0 flex-1">Remote Model</div>
-          <div className="w-[280px] shrink-0">Public Model ID</div>
-          <div className="w-28 shrink-0">Last Seen</div>
-          <div className="w-10 shrink-0"></div>
-        </div>
-        <div className="max-h-[640px]">
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-            <div key={i} className="flex items-center border-b border-border px-3 py-2 last:border-b-0">
-              <div className="w-10 shrink-0"><Skeleton className="h-5 w-5" /></div>
-              <div className="w-32 shrink-0"><Skeleton className="h-5 w-16" /></div>
-              <div className="min-w-0 flex-1"><Skeleton className="h-5 w-40" /></div>
-              <div className="w-[280px] shrink-0"><Skeleton className="h-5 w-36" /></div>
-              <div className="w-28 shrink-0"><Skeleton className="h-5 w-24" /></div>
-              <div className="w-10 shrink-0"><Skeleton className="h-5 w-5" /></div>
+        <div className="max-h-[640px] overflow-auto">
+          <div className="min-w-[720px]">
+            <div className={`bg-muted/40 sticky top-0 z-10 grid items-center border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground ${GRID_COLS}`}>
+              <div>暴露</div>
+              <div>Provider</div>
+              <div>Remote Model</div>
+              <div>Public Model ID</div>
+              <div>Last Seen</div>
+              <div></div>
             </div>
-          ))}
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className={`grid items-center border-b border-border px-3 py-2 last:border-b-0 ${GRID_COLS}`}>
+                <div><Skeleton className="h-5 w-5" /></div>
+                <div><Skeleton className="h-5 w-16" /></div>
+                <div><Skeleton className="h-5 w-40" /></div>
+                <div><Skeleton className="h-5 w-36" /></div>
+                <div><Skeleton className="h-5 w-24" /></div>
+                <div><Skeleton className="h-5 w-5" /></div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -221,35 +224,37 @@ export function Models() {
       </div>
 
       <div className="border-border bg-card overflow-hidden rounded-lg border">
-        <div className="bg-muted/40 flex items-center border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground">
-          <div className="w-10 shrink-0">暴露</div>
-          <div className="w-32 shrink-0">Provider</div>
-          <div className="min-w-0 flex-1">Remote Model</div>
-          <div className="w-[280px] shrink-0">Public Model ID</div>
-          <div className="w-28 shrink-0">Last Seen</div>
-          <div className="w-10 shrink-0"></div>
-        </div>
         <div ref={scrollRef} className="max-h-[640px] overflow-auto">
-          {visible.length === 0 ? (
-            <div className="text-muted-foreground py-10 text-center text-sm">
-              暂无模型。请先添加 Provider 并同步，或调整搜索 / 筛选条件。
+          <div className="min-w-[720px]">
+            <div className={`bg-muted/40 sticky top-0 z-10 grid items-center border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground ${GRID_COLS}`}>
+              <div>暴露</div>
+              <div>Provider</div>
+              <div>Remote Model</div>
+              <div>Public Model ID</div>
+              <div>Last Seen</div>
+              <div></div>
             </div>
-          ) : (
-            <div className="relative" style={{ height: rowVirtualizer.getTotalSize() }}>
-              {rowVirtualizer.getVirtualItems().map((virtualRow) => (
-                <div
-                  key={virtualRow.key}
-                  className="absolute left-0 top-0 w-full"
-                  style={{
-                    height: virtualRow.size,
-                    transform: `translateY(${virtualRow.start}px)`,
-                  }}
-                >
-                  <ModelRow model={visible[virtualRow.index]} />
-                </div>
-              ))}
-            </div>
-          )}
+            {visible.length === 0 ? (
+              <div className="text-muted-foreground py-10 text-center text-sm">
+                暂无模型。请先添加 Provider 并同步，或调整搜索 / 筛选条件。
+              </div>
+            ) : (
+              <div className="relative" style={{ height: rowVirtualizer.getTotalSize() }}>
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => (
+                  <div
+                    key={virtualRow.key}
+                    className="absolute left-0 top-0 w-full"
+                    style={{
+                      height: virtualRow.size,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <ModelRow model={visible[virtualRow.index]} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
