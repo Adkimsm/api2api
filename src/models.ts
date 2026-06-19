@@ -72,19 +72,12 @@ export async function syncProviderModels(env: Env, provider: ProviderRow) {
     ).bind(id("model"), provider.id, remoteModelId, defaultPublicModelId(provider, remoteModelId), now, now, now)
   );
 
-  // Remove models that no longer exist on the upstream provider
-  if (remoteModelIds.length > 0) {
-    const placeholders = remoteModelIds.map(() => "?").join(",");
-    statements.push(
-      env.DB.prepare(
-        `DELETE FROM models WHERE provider_id = ? AND remote_model_id NOT IN (${placeholders})`
-      ).bind(provider.id, ...remoteModelIds)
-    );
-  } else {
-    statements.push(
-      env.DB.prepare(`DELETE FROM models WHERE provider_id = ?`).bind(provider.id)
-    );
-  }
+  // Remove models not seen in this sync
+  statements.push(
+    env.DB.prepare(
+      `DELETE FROM models WHERE provider_id = ? AND last_seen_at != ?`
+    ).bind(provider.id, now)
+  );
 
   statements.push(
     env.DB.prepare(`UPDATE providers SET last_synced_at = ?, updated_at = ? WHERE id = ?`).bind(now, now, provider.id)
