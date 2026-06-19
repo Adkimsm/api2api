@@ -3,6 +3,13 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { Loader2, Plus, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -75,6 +82,8 @@ export function Models() {
   const [providerFilter, setProviderFilter] = useState<string>(ALL_PROVIDERS);
   const [addOpen, setAddOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [syncErrors, setSyncErrors] = useState<Array<{ providerName: string; error: string }>>([]);
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -115,13 +124,9 @@ export function Models() {
       if (errors.length === 0) {
         toast.success("全部同步完成", { id });
       } else {
-        const failedNames = errors
-          .map((e: any) => `${e.providerName}: ${e.error}`)
-          .join("\n");
-        toast.error(
-          `以下 ${errors.length} 个 provider 同步失败：\n${failedNames}`,
-          { id, duration: 8000 }
-        );
+        setSyncErrors(errors.map((e: any) => ({ providerName: e.providerName, error: e.error })));
+        setErrorDialogOpen(true);
+        toast.error(`${errors.length} 个 provider 同步失败`, { id, duration: 8000 });
       }
     } catch (err) {
       toast.error((err as Error).message, { id });
@@ -260,6 +265,25 @@ export function Models() {
       </div>
 
       <ModelForm open={addOpen} onOpenChange={setAddOpen} />
+
+      <Dialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>同步失败详情</DialogTitle>
+            <DialogDescription>
+              以下 {syncErrors.length} 个 provider 同步失败：
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-80 space-y-2 overflow-y-auto">
+            {syncErrors.map((e, i) => (
+              <div key={i} className="rounded-md border p-3 text-sm">
+                <div className="font-medium">{e.providerName}</div>
+                <div className="text-muted-foreground mt-1 break-all">{e.error}</div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
