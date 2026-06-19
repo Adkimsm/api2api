@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { Check, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { TableCell, TableRow } from "@/components/ui/table";
 import { api } from "../api";
 import { useAdminData } from "../hooks/useAdminData";
 import type { Model } from "../types";
@@ -22,7 +21,7 @@ interface Props {
   model: Model;
 }
 
-export function ModelRow({ model }: Props) {
+export const ModelRow = memo(function ModelRow({ model }: Props) {
   const { reload } = useAdminData();
   const [publicId, setPublicId] = useState(model.publicModelId);
   const [savingSelected, setSavingSelected] = useState(false);
@@ -83,8 +82,8 @@ export function ModelRow({ model }: Props) {
   const dirty = publicId !== model.publicModelId;
 
   return (
-    <TableRow>
-      <TableCell className="w-10">
+    <div className="flex items-center border-b border-border text-sm last:border-b-0">
+      <div className="w-10 shrink-0 px-3 py-2">
         {savingSelected ? (
           <Loader2 className="text-muted-foreground size-4 animate-spin" />
         ) : (
@@ -94,16 +93,16 @@ export function ModelRow({ model }: Props) {
             aria-label="暴露此模型"
           />
         )}
-      </TableCell>
-      <TableCell>
+      </div>
+      <div className="w-32 shrink-0 px-3 py-2">
         <Badge variant={model.providerEnabled ? "secondary" : "outline"} className="text-xs font-normal">
           {model.providerName}
         </Badge>
-      </TableCell>
-      <TableCell>
+      </div>
+      <div className="min-w-0 flex-1 px-3 py-2">
         <code className="font-mono text-xs">{model.remoteModelId}</code>
-      </TableCell>
-      <TableCell>
+      </div>
+      <div className="w-[280px] shrink-0 px-3 py-2">
         <div className="flex items-center gap-1.5">
           <Input
             value={publicId}
@@ -125,9 +124,9 @@ export function ModelRow({ model }: Props) {
             </Button>
           )}
         </div>
-      </TableCell>
-      <TableCell className="text-muted-foreground text-xs whitespace-nowrap">{model.lastSeenAt}</TableCell>
-      <TableCell className="w-10">
+      </div>
+      <div className="w-28 shrink-0 px-3 py-2 text-muted-foreground text-xs whitespace-nowrap">{model.lastSeenAt}</div>
+      <div className="w-10 shrink-0 px-3 py-2">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -138,7 +137,7 @@ export function ModelRow({ model }: Props) {
         >
           {deleting ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
         </Button>
-      </TableCell>
+      </div>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="sm:max-w-md">
@@ -158,6 +157,6 @@ export function ModelRow({ model }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </TableRow>
+    </div>
   );
-}
+});

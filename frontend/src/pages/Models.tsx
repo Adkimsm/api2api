@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Loader2, Plus, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,20 +12,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { api } from "../api";
 import { ModelForm } from "../components/ModelForm";
 import { ModelRow } from "../components/ModelRow";
 import { useAdminData } from "../hooks/useAdminData";
 
 const ALL_PROVIDERS = "__all__";
+const ROW_HEIGHT = 44;
 
 function ModelsSkeleton() {
   return (
@@ -47,31 +41,25 @@ function ModelsSkeleton() {
         <Skeleton className="h-10 w-24" />
       </div>
       <div className="border-border bg-card overflow-hidden rounded-lg border">
-        <div className="max-h-[640px] overflow-auto">
-          <Table>
-            <TableHeader className="bg-muted/40 sticky top-0 backdrop-blur">
-              <TableRow>
-                <TableHead className="w-10">暴露</TableHead>
-                <TableHead>Provider</TableHead>
-                <TableHead>Remote Model</TableHead>
-                <TableHead>Public Model ID</TableHead>
-                <TableHead className="whitespace-nowrap">Last Seen</TableHead>
-                <TableHead className="w-10"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                <TableRow key={i}>
-                  <TableCell><Skeleton className="h-5 w-5" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-36" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-5" /></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="bg-muted/40 flex items-center border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground">
+          <div className="w-10 shrink-0">暴露</div>
+          <div className="w-32 shrink-0">Provider</div>
+          <div className="min-w-0 flex-1">Remote Model</div>
+          <div className="w-[280px] shrink-0">Public Model ID</div>
+          <div className="w-28 shrink-0">Last Seen</div>
+          <div className="w-10 shrink-0"></div>
+        </div>
+        <div className="max-h-[640px]">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <div key={i} className="flex items-center border-b border-border px-3 py-2 last:border-b-0">
+              <div className="w-10 shrink-0"><Skeleton className="h-5 w-5" /></div>
+              <div className="w-32 shrink-0"><Skeleton className="h-5 w-16" /></div>
+              <div className="min-w-0 flex-1"><Skeleton className="h-5 w-40" /></div>
+              <div className="w-[280px] shrink-0"><Skeleton className="h-5 w-36" /></div>
+              <div className="w-28 shrink-0"><Skeleton className="h-5 w-24" /></div>
+              <div className="w-10 shrink-0"><Skeleton className="h-5 w-5" /></div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -84,6 +72,7 @@ export function Models() {
   const [providerFilter, setProviderFilter] = useState<string>(ALL_PROVIDERS);
   const [addOpen, setAddOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     requestAnimationFrame(() => setMounted(true));
@@ -102,6 +91,13 @@ export function Models() {
   }, [models, search, providerFilter]);
 
   const selectedCount = models.filter((m) => m.selected && m.providerEnabled).length;
+
+  const rowVirtualizer = useVirtualizer({
+    count: visible.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 5,
+  });
 
   if (loading || !mounted) return <ModelsSkeleton />;
 
@@ -225,30 +221,35 @@ export function Models() {
       </div>
 
       <div className="border-border bg-card overflow-hidden rounded-lg border">
-        <div className="max-h-[640px] overflow-auto">
-          <Table>
-            <TableHeader className="bg-muted/40 sticky top-0 backdrop-blur">
-              <TableRow>
-                <TableHead className="w-10">暴露</TableHead>
-                <TableHead>Provider</TableHead>
-                <TableHead>Remote Model</TableHead>
-                <TableHead>Public Model ID</TableHead>
-                <TableHead className="whitespace-nowrap">Last Seen</TableHead>
-                <TableHead className="w-10"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visible.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-muted-foreground py-10 text-center text-sm">
-                    暂无模型。请先添加 Provider 并同步，或调整搜索 / 筛选条件。
-                  </TableCell>
-                </TableRow>
-              ) : (
-                visible.map((m) => <ModelRow key={m.id} model={m} />)
-              )}
-            </TableBody>
-          </Table>
+        <div className="bg-muted/40 flex items-center border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground">
+          <div className="w-10 shrink-0">暴露</div>
+          <div className="w-32 shrink-0">Provider</div>
+          <div className="min-w-0 flex-1">Remote Model</div>
+          <div className="w-[280px] shrink-0">Public Model ID</div>
+          <div className="w-28 shrink-0">Last Seen</div>
+          <div className="w-10 shrink-0"></div>
+        </div>
+        <div ref={scrollRef} className="max-h-[640px] overflow-auto">
+          {visible.length === 0 ? (
+            <div className="text-muted-foreground py-10 text-center text-sm">
+              暂无模型。请先添加 Provider 并同步，或调整搜索 / 筛选条件。
+            </div>
+          ) : (
+            <div className="relative" style={{ height: rowVirtualizer.getTotalSize() }}>
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => (
+                <div
+                  key={virtualRow.key}
+                  className="absolute left-0 top-0 w-full"
+                  style={{
+                    height: virtualRow.size,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  <ModelRow model={visible[virtualRow.index]} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
