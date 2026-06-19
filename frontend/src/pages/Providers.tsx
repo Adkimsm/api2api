@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -43,6 +43,11 @@ export function Providers() {
   const { providers, loading } = useAdminData();
   const [editing, setEditing] = useState<Provider | null>(null);
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    requestAnimationFrame(() => setMounted(true));
+  }, []);
 
   function openAdd() {
     setEditing(null);
@@ -54,7 +59,7 @@ export function Providers() {
     setOpen(true);
   }
 
-  if (loading) return <ProvidersSkeleton />;
+  if (loading || !mounted) return <ProvidersSkeleton />;
 
   return (
     <div className="space-y-6">

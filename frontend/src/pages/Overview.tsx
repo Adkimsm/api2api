@@ -143,6 +143,11 @@ export function Overview() {
   const [currentAdminToken, setCurrentAdminToken] = useState("");
   const [newAdminToken, setNewAdminToken] = useState("");
   const [savingConfig, setSavingConfig] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    requestAnimationFrame(() => setMounted(true));
+  }, []);
 
   useEffect(() => {
     setServiceApiKeyInput(config?.serviceApiKey || "");
@@ -225,7 +230,7 @@ export function Overview() {
     }
   }
 
-  if (loading) return <OverviewSkeleton />;
+  if (loading || !mounted) return <OverviewSkeleton />;
 
   return (
     <div className="space-y-6">

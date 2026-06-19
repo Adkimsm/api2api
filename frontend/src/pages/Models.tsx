@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -83,6 +83,11 @@ export function Models() {
   const [search, setSearch] = useState("");
   const [providerFilter, setProviderFilter] = useState<string>(ALL_PROVIDERS);
   const [addOpen, setAddOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    requestAnimationFrame(() => setMounted(true));
+  }, []);
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -98,7 +103,7 @@ export function Models() {
 
   const selectedCount = models.filter((m) => m.selected && m.providerEnabled).length;
 
-  if (loading) return <ModelsSkeleton />;
+  if (loading || !mounted) return <ModelsSkeleton />;
 
   async function syncAll() {
     setBusy(true);
