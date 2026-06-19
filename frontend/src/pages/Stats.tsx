@@ -3,6 +3,7 @@ import { BarChart3, TrendingUp, Activity, Layers } from "lucide-react";
 import { fetchTokenStats, fetchTokenTrend } from "../api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -60,6 +61,80 @@ function MiniBarChart({ data, maxVal }: { data: PeriodTokenStats[]; maxVal: numb
   );
 }
 
+function StatsSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <Skeleton className="h-8 w-24" />
+        <Skeleton className="mt-1 h-4 w-40" />
+      </div>
+      <div className="flex gap-1 rounded-lg bg-muted p-1 w-fit">
+        <Skeleton className="h-8 w-12" />
+        <Skeleton className="h-8 w-12" />
+        <Skeleton className="h-8 w-12" />
+        <Skeleton className="h-8 w-12" />
+      </div>
+      <div className="grid gap-4 md:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-4" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-8 w-16" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-5 w-24" />
+            <div className="flex gap-1 rounded bg-muted p-0.5">
+              <Skeleton className="h-6 w-10" />
+              <Skeleton className="h-6 w-10" />
+              <Skeleton className="h-6 w-10" />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-40 w-full" />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-5 w-32" />
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <div className="space-y-2 p-4">
+              <div className="flex gap-4">
+                <Skeleton className="h-5 w-20" />
+                <Skeleton className="h-5 w-16 ml-auto" />
+                <Skeleton className="h-5 w-16" />
+                <Skeleton className="h-5 w-16" />
+                <Skeleton className="h-5 w-16" />
+                <Skeleton className="h-5 w-12" />
+              </div>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex gap-4">
+                  <Skeleton className="h-5 w-24" />
+                  <Skeleton className="h-5 w-16 ml-auto" />
+                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-5 w-12" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export function Stats() {
   const [period, setPeriod] = useState<Period>("all");
   const [trendRange, setTrendRange] = useState<TrendRange>("30d");
@@ -89,6 +164,8 @@ export function Stats() {
 
   const maxTrend = Math.max(...trend.map((d) => d.total_tokens), 1);
 
+  if (loading && !overall) return <StatsSkeleton />;
+
   return (
     <div className="space-y-6">
       <div>
@@ -114,9 +191,7 @@ export function Stats() {
       </div>
 
       {/* Overview Cards */}
-      {loading ? (
-        <div className="text-center text-muted-foreground py-8">加载中...</div>
-      ) : overall ? (
+      {overall ? (
         <div className="grid gap-4 md:grid-cols-4">
           <StatCard icon={Layers} label="总 Token" value={formatNumber(overall.total_tokens)} />
           <StatCard icon={Activity} label="请求次数" value={formatNumber(overall.total_requests)} />

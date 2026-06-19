@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -25,8 +26,60 @@ import { useAdminData } from "../hooks/useAdminData";
 
 const ALL_PROVIDERS = "__all__";
 
+function ModelsSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="mt-1 h-4 w-64" />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-8 w-20" />
+          <Skeleton className="h-8 w-24" />
+          <Skeleton className="h-8 w-24" />
+        </div>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-[1fr_200px_auto_auto]">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-[200px]" />
+        <Skeleton className="h-10 w-24" />
+        <Skeleton className="h-10 w-24" />
+      </div>
+      <div className="border-border bg-card overflow-hidden rounded-lg border">
+        <div className="max-h-[640px] overflow-auto">
+          <Table>
+            <TableHeader className="bg-muted/40 sticky top-0 backdrop-blur">
+              <TableRow>
+                <TableHead className="w-10">暴露</TableHead>
+                <TableHead>Provider</TableHead>
+                <TableHead>Remote Model</TableHead>
+                <TableHead>Public Model ID</TableHead>
+                <TableHead className="whitespace-nowrap">Last Seen</TableHead>
+                <TableHead className="w-10"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-5 w-5" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-36" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-5" /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Models() {
-  const { providers, models, reload, busy, setBusy } = useAdminData();
+  const { providers, models, reload, busy, setBusy, loading } = useAdminData();
   const [search, setSearch] = useState("");
   const [providerFilter, setProviderFilter] = useState<string>(ALL_PROVIDERS);
   const [addOpen, setAddOpen] = useState(false);
@@ -44,6 +97,8 @@ export function Models() {
   }, [models, search, providerFilter]);
 
   const selectedCount = models.filter((m) => m.selected && m.providerEnabled).length;
+
+  if (loading) return <ModelsSkeleton />;
 
   async function syncAll() {
     setBusy(true);

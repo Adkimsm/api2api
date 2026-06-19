@@ -82,10 +82,10 @@ export function App() {
 
   const route = useHashRoute();
 
-  const handleLogin = useCallback(async () => {
-    await reload();
+  const handleLogin = useCallback(() => {
+    setLoading(true);
     setAuthed(true);
-  }, [reload]);
+  }, []);
 
   const handleLogout = useCallback(() => {
     clearToken();

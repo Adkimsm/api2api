@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAdminData } from "../hooks/useAdminData";
 
 const EXPORT_TARGETS = [{ value: "opencode", label: "opencode" }] as const;
@@ -73,8 +74,70 @@ function CopyField({ label, value, monospace = true }: { label: string; value: s
   );
 }
 
+function OverviewSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <Skeleton className="h-8 w-24" />
+        <Skeleton className="mt-1 h-4 w-64" />
+      </div>
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="mt-1 h-4 w-80" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <div className="space-y-1.5">
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="mt-1 h-4 w-80" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          </div>
+          <Skeleton className="h-10 w-24" />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="mt-1 h-4 w-80" />
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-center gap-2">
+            <Skeleton className="h-10 w-[180px]" />
+            <Skeleton className="h-10 w-20" />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export function Overview() {
-  const { config, models, reload } = useAdminData();
+  const { config, models, reload, loading } = useAdminData();
   const [exportTarget, setExportTarget] = useState<string>(EXPORT_TARGETS[0].value);
   const [serviceApiKeyInput, setServiceApiKeyInput] = useState(config?.serviceApiKey || "");
   const [currentAdminToken, setCurrentAdminToken] = useState("");
@@ -161,6 +224,8 @@ export function Overview() {
       setSavingConfig(false);
     }
   }
+
+  if (loading) return <OverviewSkeleton />;
 
   return (
     <div className="space-y-6">
