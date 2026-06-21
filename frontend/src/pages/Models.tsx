@@ -111,7 +111,7 @@ export function Models() {
     overscan: 5,
   });
 
-  if (loading || !mounted) return <ModelsSkeleton />;
+  if (!mounted || (loading && models.length === 0)) return <ModelsSkeleton />;
 
   async function syncAll() {
     setBusy(true);

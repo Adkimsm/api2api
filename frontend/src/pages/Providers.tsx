@@ -59,7 +59,7 @@ export function Providers() {
     setOpen(true);
   }
 
-  if (loading || !mounted) return <ProvidersSkeleton />;
+  if (!mounted || (loading && providers.length === 0)) return <ProvidersSkeleton />;
 
   return (
     <div className="space-y-6">

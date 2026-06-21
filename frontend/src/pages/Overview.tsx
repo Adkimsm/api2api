@@ -230,7 +230,7 @@ export function Overview() {
     }
   }
 
-  if (loading || !mounted) return <OverviewSkeleton />;
+  if (!mounted || (loading && !config)) return <OverviewSkeleton />;
 
   return (
     <div className="space-y-6">
