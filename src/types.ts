@@ -23,6 +23,8 @@ export type ProviderRow = {
   updated_at: string;
   inject_tools: number;
   injected_tools: string | null;
+  inject_prompt: number;
+  injected_prompt: string | null;
 };
 
 export type ModelRow = {
@@ -43,6 +45,8 @@ export type ModelWithProviderRow = ModelRow & {
   encrypted_api_key: string;
   inject_tools: number;
   injected_tools: string | null;
+  inject_prompt: number;
+  injected_prompt: string | null;
 };
 
 export type TokenUsageRow = {

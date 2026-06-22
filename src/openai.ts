@@ -4,6 +4,7 @@ import { decryptApiKey } from "./crypto";
 import { findSelectedModel, insertTokenUsage } from "./db";
 import { error, filteredRequestHeaders, filterResponseHeaders, json } from "./http";
 import { selectedModelsResponse } from "./models";
+import { generatePromptFromTools } from "./promptBuilder";
 import type { Env, ModelWithProviderRow } from "./types";
 
 type OpenAIRequestBody = {
@@ -198,6 +199,40 @@ async function proxyOpenAI(c: Context<{ Bindings: Env }>, endpoint: "/chat/compl
     } catch (err) {
       // JSON parse failed, ignore injection and continue with original request
       console.error('Failed to parse or merge injected_tools:', err);
+    }
+  }
+
+  // Prompt injection logic
+  if (model.inject_prompt === 1) {
+    let promptText = model.injected_prompt;
+
+    // Auto-generate from tools if no custom prompt
+    if (!promptText && model.inject_tools === 1 && model.injected_tools) {
+      try {
+        const tools = JSON.parse(model.injected_tools);
+        if (Array.isArray(tools) && tools.length > 0) {
+          promptText = generatePromptFromTools(tools);
+        }
+      } catch (err) {
+        console.error("Failed to generate prompt from tools:", err);
+      }
+    }
+
+    if (promptText) {
+      const messages = upstreamBody.messages;
+      if (Array.isArray(messages)) {
+        const systemIndex = messages.findIndex(
+          (m: Record<string, unknown>) => m.role === "system"
+        );
+        if (systemIndex >= 0) {
+          messages[systemIndex] = {
+            ...messages[systemIndex],
+            content: promptText + "\n\n" + (messages[systemIndex].content || ""),
+          };
+        } else {
+          messages.unshift({ role: "system", content: promptText });
+        }
+      }
     }
   }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toolTemplates } from "@/data/toolTemplates";
+import { generatePromptFromTools } from "@/utils/promptBuilder";
 import { api } from "../api";
 import { useAdminData } from "../hooks/useAdminData";
 import type { Provider } from "../types";
@@ -35,9 +36,11 @@ interface FormState {
   enabled: boolean;
   injectTools: boolean;
   injectedTools: string;
+  injectPrompt: boolean;
+  injectedPrompt: string;
 }
 
-const EMPTY: FormState = { name: "", baseUrl: "", apiKey: "", enabled: true, injectTools: false, injectedTools: "" };
+const EMPTY: FormState = { name: "", baseUrl: "", apiKey: "", enabled: true, injectTools: false, injectedTools: "", injectPrompt: false, injectedPrompt: "" };
 
 export function ProviderForm({ open, onOpenChange, editing }: Props) {
   const { reload } = useAdminData();
@@ -45,6 +48,7 @@ export function ProviderForm({ open, onOpenChange, editing }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState("");
+  const [generatedPrompt, setGeneratedPrompt] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -55,14 +59,51 @@ export function ProviderForm({ open, onOpenChange, editing }: Props) {
         apiKey: "", 
         enabled: editing.enabled,
         injectTools: editing.injectTools,
-        injectedTools: editing.injectedTools || ""
+        injectedTools: editing.injectedTools || "",
+        injectPrompt: editing.injectPrompt,
+        injectedPrompt: editing.injectedPrompt || "",
       });
+      // Auto-generate prompt preview if tools exist
+      if (editing.injectTools && editing.injectedTools) {
+        try {
+          const tools = JSON.parse(editing.injectedTools);
+          if (Array.isArray(tools) && tools.length > 0) {
+            setGeneratedPrompt(generatePromptFromTools(tools));
+          } else {
+            setGeneratedPrompt("");
+          }
+        } catch {
+          setGeneratedPrompt("");
+        }
+      } else {
+        setGeneratedPrompt("");
+      }
     } else {
       setState(EMPTY);
+      setGeneratedPrompt("");
     }
     setShowTemplates(false);
     setSelectedTemplate("");
   }, [open, editing]);
+
+  function regeneratePrompt() {
+    try {
+      const tools = state.injectedTools.trim() ? JSON.parse(state.injectedTools) : [];
+      if (!Array.isArray(tools)) {
+        toast.error("工具定义必须是 JSON 数组");
+        return;
+      }
+      if (tools.length === 0) {
+        setGeneratedPrompt("");
+        toast.info("没有工具定义，提示词已清空");
+        return;
+      }
+      setGeneratedPrompt(generatePromptFromTools(tools));
+      toast.success("提示词已重新生成");
+    } catch (err) {
+      toast.error("工具定义 JSON 格式错误：" + (err as Error).message);
+    }
+  }
 
   function insertTemplate() {
     if (!selectedTemplate) {
@@ -141,12 +182,16 @@ export function ProviderForm({ open, onOpenChange, editing }: Props) {
       baseUrl: state.baseUrl.trim(),
       enabled: state.enabled,
       injectTools: state.injectTools,
+      injectPrompt: state.injectPrompt,
     };
     const key = state.apiKey.trim();
     if (key) body.apiKey = key;
     
     if (state.injectTools && state.injectedTools.trim()) {
       body.injectedTools = state.injectedTools.trim();
+    }
+    if (state.injectPrompt && state.injectedPrompt.trim()) {
+      body.injectedPrompt = state.injectedPrompt.trim();
     }
     
     setSubmitting(true);
@@ -277,6 +322,56 @@ export function ProviderForm({ open, onOpenChange, editing }: Props) {
                   />
                   <p className="text-xs text-muted-foreground">
                     转发请求时会将这些工具与客户端提供的工具合并（同名 function 会保留客户端的定义）。支持 function、file_search、web_search、code_interpreter 等所有 OpenAI 工具类型。
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Prompt injection configuration */}
+          <div className="space-y-4 rounded-lg border p-4 bg-muted/30">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="provider-inject-prompt"
+                checked={state.injectPrompt}
+                onCheckedChange={(v) => setState({ ...state, injectPrompt: v === true })}
+              />
+              <Label htmlFor="provider-inject-prompt" className="cursor-pointer text-sm font-normal">
+                注入提示词到 system prompt
+              </Label>
+            </div>
+
+            {state.injectPrompt && (
+              <>
+                <Button type="button" variant="outline" size="sm" className="w-full" onClick={regeneratePrompt}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  重新生成提示词
+                </Button>
+
+                {generatedPrompt && (
+                  <div className="space-y-2">
+                    <Label>提示词预览（自动生成）</Label>
+                    <Textarea
+                      readOnly
+                      className="font-mono text-xs min-h-[120px] bg-muted/50"
+                      rows={10}
+                      value={generatedPrompt}
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="injected-prompt">追加提示词（可选）</Label>
+                  <Textarea
+                    id="injected-prompt"
+                    placeholder="在此输入要追加到自动生成内容后面的提示词，例如额外的使用说明、限制条件等。"
+                    className="text-xs min-h-[80px]"
+                    rows={4}
+                    value={state.injectedPrompt}
+                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setState({ ...state, injectedPrompt: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    自定义内容会追加到自动生成的工具描述之后。转发请求时会注入到 system message 开头。即使没有工具定义，也可以独立编写提示词。
                   </p>
                 </div>
               </>

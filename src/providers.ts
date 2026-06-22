@@ -12,6 +12,8 @@ type ProviderInput = {
   enabled?: boolean;
   injectTools?: boolean;
   injectedTools?: string;
+  injectPrompt?: boolean;
+  injectedPrompt?: string;
 };
 
 function publicProvider(row: Awaited<ReturnType<typeof listProviders>>[number], modelCount = 0) {
@@ -27,6 +29,8 @@ function publicProvider(row: Awaited<ReturnType<typeof listProviders>>[number], 
     modelCount,
     injectTools: row.inject_tools === 1,
     injectedTools: row.injected_tools || null,
+    injectPrompt: row.inject_prompt === 1,
+    injectedPrompt: row.injected_prompt || null,
   };
 }
 
@@ -71,12 +75,16 @@ providerRoutes.post("/", async (c) => {
   const injectedTools = (body.injectTools && body.injectedTools?.trim()) 
     ? body.injectedTools.trim() 
     : null;
+  const injectPrompt = body.injectPrompt === true ? 1 : 0;
+  const injectedPrompt = (body.injectPrompt && body.injectedPrompt?.trim())
+    ? body.injectedPrompt.trim()
+    : null;
 
   try {
     await c.env.DB.prepare(
-      `INSERT INTO providers (id, name, base_url, encrypted_api_key, enabled, inject_tools, injected_tools, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(providerId, name, baseUrl, encryptedApiKey, body.enabled === false ? 0 : 1, injectTools, injectedTools, now, now).run();
+      `INSERT INTO providers (id, name, base_url, encrypted_api_key, enabled, inject_tools, injected_tools, inject_prompt, injected_prompt, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(providerId, name, baseUrl, encryptedApiKey, body.enabled === false ? 0 : 1, injectTools, injectedTools, injectPrompt, injectedPrompt, now, now).run();
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to create provider";
     if (message.toLowerCase().includes("unique")) return error("Provider name already exists", 409, "conflict");
@@ -121,15 +129,29 @@ providerRoutes.patch("/:id", async (c) => {
     }
   }
 
+  // Handle prompt injection
+  const injectPrompt = body.injectPrompt === undefined
+    ? provider.inject_prompt
+    : body.injectPrompt ? 1 : 0;
+
+  let injectedPrompt = provider.injected_prompt;
+  if (body.injectPrompt !== undefined) {
+    if (body.injectPrompt && body.injectedPrompt !== undefined) {
+      injectedPrompt = body.injectedPrompt.trim() || null;
+    } else if (!body.injectPrompt) {
+      injectedPrompt = null;
+    }
+  }
+
   if (!name) return error("Provider name is required");
   if (!baseUrl) return error("Provider baseUrl is required");
 
   try {
     await c.env.DB.prepare(
       `UPDATE providers
-       SET name = ?, base_url = ?, encrypted_api_key = ?, enabled = ?, inject_tools = ?, injected_tools = ?, updated_at = ?
+       SET name = ?, base_url = ?, encrypted_api_key = ?, enabled = ?, inject_tools = ?, injected_tools = ?, inject_prompt = ?, injected_prompt = ?, updated_at = ?
        WHERE id = ?`
-    ).bind(name, baseUrl, encryptedApiKey, enabled, injectTools, injectedTools, nowIso(), provider.id).run();
+    ).bind(name, baseUrl, encryptedApiKey, enabled, injectTools, injectedTools, injectPrompt, injectedPrompt, nowIso(), provider.id).run();
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to update provider";
     if (message.toLowerCase().includes("unique")) return error("Provider name already exists", 409, "conflict");

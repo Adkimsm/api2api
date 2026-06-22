@@ -7,6 +7,8 @@ export interface Provider {
   lastSyncedAt: string | null;
   injectTools: boolean;
   injectedTools: string | null;
+  injectPrompt: boolean;
+  injectedPrompt: string | null;
 }
 
 export interface Model {

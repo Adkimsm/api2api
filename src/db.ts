@@ -54,7 +54,9 @@ export async function listModels(env: Env): Promise<ModelWithProviderRow[]> {
        providers.enabled AS provider_enabled,
        providers.encrypted_api_key AS encrypted_api_key,
        providers.inject_tools AS inject_tools,
-       providers.injected_tools AS injected_tools
+       providers.injected_tools AS injected_tools,
+       providers.inject_prompt AS inject_prompt,
+       providers.injected_prompt AS injected_prompt
      FROM models
      INNER JOIN providers ON providers.id = models.provider_id
      ORDER BY providers.name ASC, models.remote_model_id ASC`
@@ -71,7 +73,9 @@ export async function listSelectedModels(env: Env): Promise<ModelWithProviderRow
        providers.enabled AS provider_enabled,
        providers.encrypted_api_key AS encrypted_api_key,
        providers.inject_tools AS inject_tools,
-       providers.injected_tools AS injected_tools
+       providers.injected_tools AS injected_tools,
+       providers.inject_prompt AS inject_prompt,
+       providers.injected_prompt AS injected_prompt
      FROM models
      INNER JOIN providers ON providers.id = models.provider_id
      WHERE models.selected = 1 AND providers.enabled = 1
@@ -89,7 +93,9 @@ export async function findSelectedModel(env: Env, publicModelId: string): Promis
        providers.enabled AS provider_enabled,
        providers.encrypted_api_key AS encrypted_api_key,
        providers.inject_tools AS inject_tools,
-       providers.injected_tools AS injected_tools
+       providers.injected_tools AS injected_tools,
+       providers.inject_prompt AS inject_prompt,
+       providers.injected_prompt AS injected_prompt
      FROM models
      INNER JOIN providers ON providers.id = models.provider_id
      WHERE models.public_model_id = ? AND models.selected = 1 AND providers.enabled = 1`

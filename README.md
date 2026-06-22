@@ -12,6 +12,7 @@ Cloudflare Workers 上的私人 OpenAI-compatible 聚合网关。
 - 通过 Cloudflare Workers Assets 直接提供静态资源
 - 添加、编辑、删除、启用、禁用 provider
 - **工具注入**：为每个 provider 配置要注入的 OpenAI tools，转发时自动合并到请求中
+- **提示词注入**：为注入的工具自动生成 system prompt 指令，支持自定义追加内容
 - 从每个 provider 的 `GET /v1/models` 同步模型并存储到 D1
 - 管理页面选择要暴露的模型
 - 可编辑公开模型 ID，例如 `openrouter/openai/gpt-4o-mini`
@@ -77,10 +78,11 @@ api2api/
 │   ├── auth.ts           ADMIN_TOKEN / SERVICE_API_KEY 鉴权中间件
 │   ├── providers.ts      /api/providers
 │   ├── models.ts         /api/models + 同步逻辑
-│   ├── openai.ts         /v1/* OpenAI-compatible 转发 + 工具注入
+│   ├── openai.ts         /v1/* OpenAI-compatible 转发 + 工具注入 + 提示词注入
 │   ├── stats.ts          /api/stats Token 用量统计
 │   ├── db.ts             D1 查询
 │   ├── crypto.ts         provider API Key 加解密
+│   ├── promptBuilder.ts  提示词生成（工具使用说明）
 │   ├── validation.ts     工具定义 JSON 验证
 │   ├── http.ts           JSON / CORS / 错误响应
 │   └── types.ts          Env / 业务类型
@@ -346,7 +348,10 @@ https://api2api.your-subdomain.workers.dev/v1
 - `API Key`：上游 provider 的 API key
 - `Enabled`：是否启用
 - `启用工具注入`：是否在转发请求时注入额外的工具定义
-- `工具定义`：OpenAI tools 数组的 JSON 格式，例如：
+- `工具定义`：OpenAI tools 数组的 JSON 格式（支持从模板快速添加）
+- `注入提示词到 system prompt`：是否将工具使用说明注入到 system message 开头
+- `重新生成提示词`：基于工具定义自动生成工具使用说明
+- `追加提示词`：自定义内容，追加到自动生成的工具描述之后
 
 ```json
 [
